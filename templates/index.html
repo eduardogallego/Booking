@@ -1,0 +1,19 @@
+<h1>{{ day }}</h1>
+
+<table>
+    {% for period, status in court_status.items() %}
+    <tr>
+        <td>{{ period }}</td>
+        {% if status['court1'] == '1' %}
+        <td style="background: red; width: 25px">1</td>
+        {% else %}
+        <td style="background: green; width: 25px">1</td>
+        {% endif %}
+        {% if status['court2'] == '1' %}
+        <td style="background: red; width: 25px">2</td>
+        {% else %}
+        <td style="background: green; width: 25px">2</td>
+        {% endif %}
+    </tr>
+    {% endfor %}
+</table>
