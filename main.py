@@ -6,9 +6,11 @@ from apiclient import ApiClient
 from config import Config
 from security import Security
 
-if os.path.isfile(Config.file_credentials.value):
+config = Config()
+
+if os.path.isfile(config.get('credentials_file')):
     update_credentials = False
-    with open(Config.file_credentials.value) as input_file:
+    with open(config.get('credentials_file')) as input_file:
         credentials = json.load(input_file)
         for cookie in credentials['cookies']:
             if time.time() > cookie['expiry']:
@@ -18,14 +20,14 @@ else:
     update_credentials = True
 
 if update_credentials:
-    security = Security()
+    security = Security(config)
     while not security.update_credentials():
         print("Error updating the credentials, retry")
-    with open(Config.file_credentials.value) as input_file:
+    with open(config.get('credentials_file')) as input_file:
         credentials = json.load(input_file)
 
-apiclient = ApiClient(credentials)
+apiclient = ApiClient(config, credentials)
 print('\n===========================================================\n')
-apiclient.check_court_status()
+print(apiclient.check_court_status())
 print('\n===========================================================\n')
-# apiclient.reserve_court()
+# print(apiclient.reserve_court())
