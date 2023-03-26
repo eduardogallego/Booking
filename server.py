@@ -1,5 +1,7 @@
+import os
+
 from datetime import date
-from flask import Flask, render_template
+from flask import Flask, render_template, send_from_directory
 
 app = Flask(__name__)
 
@@ -22,3 +24,13 @@ def index():
                     '25/03/2023 21:00:00': {'court1': '1', 'court2': '1'}}
     return render_template("index.html", day=day, court_status=court_status)
 
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'images'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+
+@app.route('/images/<image>')
+def get_image(image):
+    return send_from_directory(os.path.join(app.root_path, 'images'), image)
