@@ -2,7 +2,7 @@ import json
 import requests
 import time
 
-from datetime import date
+from datetime import datetime
 
 
 class ApiClient:
@@ -20,10 +20,9 @@ class ApiClient:
             'Referer': 'https://private.tucomunidapp.com/community/booking-new/18551'
         }
 
-    def check_court_status(self):
+    def check_court_status(self, date):
         ini_timestamp = time.time() * 1000
-        today = date.today()
-        request_dict = {'dtReserva': today.strftime('%Y-%m-%d')}
+        request_dict = {'dtReserva': date.strftime('%Y-%m-%d')}
         court_dict = {}
         for court_id in [1, 2]:
             request_dict['idElementoComun'] = \
@@ -38,9 +37,11 @@ class ApiClient:
                   % (time.time() * 1000 - ini_timestamp, court_id, court_dict[court_id]['message']))
         status_dict = {}
         for data in court_dict[1]['data']:
-            status_dict[data['fromHour']] = {'available1': data['avalaibleCapacity']}
-        for data in court_dict[1]['data']:
-            status_dict[data['fromHour']]['available2'] = data['avalaibleCapacity']
+            block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')  # 25/03/2023 10:00:00
+            status_dict[block.strftime('%H')] = {'court1': data['avalaibleCapacity']}
+        for data in court_dict[2]['data']:
+            block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')
+            status_dict[block.strftime('%H')]['court2'] = data['avalaibleCapacity']
         return status_dict
 
     def reserve_court(self, court=None):

@@ -4,6 +4,7 @@ import time
 
 from apiclient import ApiClient
 from config import Config
+from datetime import date
 from security import Security
 
 config = Config()
@@ -28,6 +29,7 @@ if update_credentials:
 
 apiclient = ApiClient(config, credentials)
 print('\n===========================================================\n')
-print(apiclient.check_court_status())
+today = date.today()
+print(apiclient.check_court_status(today))
 print('\n===========================================================\n')
 # print(apiclient.reserve_court())
