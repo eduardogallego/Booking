@@ -15,13 +15,11 @@
         <link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
         <link rel="shortcut icon" href="/images/favicon.ico">
         <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.5/index.global.min.js'></script>
-        <script src='fullcalendar/core/locales/es.global.js'></script>
         <script>
         document.addEventListener('DOMContentLoaded', function() {
       var calendarEl = document.getElementById('calendar');
 
       var calendar = new FullCalendar.Calendar(calendarEl, {
-        // locale: 'es',
         firstDay: 1,
         initialView: 'timeGridDay',
         initialDate: '{{ today }}',
@@ -49,12 +47,6 @@
         dateClick: function(info) {
             alert('Clicked on: ' + info.dateStr);
             window.location.href = 'book/' + info.dateStr;
-        },
-        select: function(info) {
-            alert('Select on: ' + info.dateStr);
-        },
-        navLinkDayClick: function(date, jsEvent) {
-            alert('NavLinkDayClick on: ' + date.toISOString());
         },
         events: [
           {
@@ -98,9 +90,6 @@
         </script>
     </head>
     <body>
-        <!--div class="container">
-            <div id='calendar'></div>
-        </div-->
         <div class="card" style="margin: 10px">
             <div class="card-body">
                 <div id='calendar'></div>
