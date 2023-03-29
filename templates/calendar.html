@@ -23,73 +23,84 @@
       var calendar = new FullCalendar.Calendar(calendarEl, {
         // locale: 'es',
         firstDay: 1,
-        initialView: 'dayGridMonth',
-        initialDate: '2023-03-07',
+        initialView: 'timeGridDay',
+        initialDate: '{{ today }}',
+        allDaySlot: false,
+        slotMinTime: '10:00:00',
+        slotMaxTime: '22:00:00',
+        displayEventTime: false,
+        contentHeight: 'auto',
+        nowIndicator: true,
+        navLinks: true,
+        slotLabelFormat: {
+            hour: '2-digit',
+            hour12: false,
+        },
         headerToolbar: {
-          left: 'title',
-          center: '',
-          right: 'prev,next',
+          left: '',
+          center: 'title',
+          right: ''
         },
         footerToolbar: {
           left: 'today',
-          center: '',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+          center: 'prev,next',
+          right: 'timeGridWeek,timeGridDay'
+        },
+        dateClick: function(info) {
+            alert('Clicked on: ' + info.dateStr);
+            window.location.href = 'book/' + info.dateStr;
+        },
+        select: function(info) {
+            alert('Select on: ' + info.dateStr);
+        },
+        navLinkDayClick: function(date, jsEvent) {
+            alert('NavLinkDayClick on: ' + date.toISOString());
         },
         events: [
           {
-            title: 'All Day Event',
-            start: '2023-03-01'
+            title: 'Santi',
+            start: '2023-03-30T13:00:00',
+            end: '2023-03-30T14:00:00',
           },
           {
-            title: 'Long Event',
-            start: '2023-03-07',
-            end: '2023-03-10'
+            start: '2023-03-30T13:00:00',
+            end: '2023-03-30T14:00:00',
+            display: 'background',
+            color: '#ff9f89'
           },
           {
-            groupId: '999',
-            title: 'Repeating Event',
-            start: '2023-03-09T16:00:00'
+            start: '2023-03-30T19:00:00',
+            end: '2023-03-30T20:00:00',
+            display: 'background',
+            color: '#ff9f89'
           },
           {
-            groupId: '999',
-            title: 'Repeating Event',
-            start: '2023-03-16T16:00:00'
+            start: '2023-03-30T19:00:00',
+            end: '2023-03-30T20:00:00',
+            display: 'background',
+            color: '#ff9f89'
           },
           {
-            title: 'Conference',
-            start: '2023-03-11',
-            end: '2023-03-13'
+            start: '2023-03-30T20:00:00',
+            end: '2023-03-30T21:00:00',
+            display: 'background',
+            color: '#ff9f89'
           },
           {
-            title: 'Meeting',
-            start: '2023-03-12T10:30:00',
-            end: '2023-03-12T12:30:00'
-          },
-          {
-            title: 'Lunch',
-            start: '2023-03-12T12:00:00'
-          },
-          {
-            title: 'Meeting',
-            start: '2023-03-12T14:30:00'
-          },
-          {
-            title: 'Birthday Party',
-            start: '2023-03-13T07:00:00'
-          },
-          {
-            title: 'Click for Google',
-            url: 'http://google.com/',
-            start: '2023-03-28'
+            title: 'Alberto',
+            start: '2023-03-30T19:00:00',
+            end: '2023-03-30T10:00:00',
           }
         ]
       });
-
       calendar.render();
     });
         </script>
     </head>
     <body>
+        <!--div class="container">
+            <div id='calendar'></div>
+        </div-->
         <div class="card" style="margin: 10px">
             <div class="card-body">
                 <div id='calendar'></div>

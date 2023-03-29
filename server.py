@@ -42,7 +42,14 @@ def index():
 
 @app.route('/calendar')
 def calendar():
-    return render_template("calendar.html")
+    today = date.today()
+    today_str = today.strftime('%Y-%m-%d')
+    return render_template("calendar.html", today=today_str)
+
+
+@app.route('/book/<date>')
+def book(date):
+    return render_template("book.html", date=date)
 
 
 @app.route('/favicon.ico')

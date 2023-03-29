@@ -9,7 +9,7 @@ from security import Security
 
 config = Config()
 
-force_update = False
+force_update = True
 if not force_update and os.path.isfile(config.get('credentials_file')):
     update_credentials = False
     with open(config.get('credentials_file')) as input_file:
