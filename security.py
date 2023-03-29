@@ -19,19 +19,22 @@ class Security:
         ini_timestamp = time.time() * 1000
         driver = None
         try:
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+            # headless option to avoid open the webdriver window
+            options = webdriver.ChromeOptions()
+            options.add_argument('headless')
+            driver = webdriver.Chrome(chrome_options=options, service=Service(ChromeDriverManager().install()))
             print("%d ms: Web Driver" % (time.time() * 1000 - ini_timestamp))
-            driver.get(self.config.get('login_url'))
 
+            driver.get(self.config.get('login_url'))
             user_input = WebDriverWait(driver, 30).until(
                 expected_conditions.presence_of_element_located((By.NAME, 'ion-input-0')))
             print("%d ms: Login Page" % (time.time() * 1000 - ini_timestamp))
+
             user_input.send_keys(self.config.get('login_user'))
             user_input.send_keys(Keys.RETURN)
             password_input = driver.find_element(By.NAME, 'ion-input-1')
             password_input.send_keys(self.config.get('login_password'))
             password_input.send_keys(Keys.RETURN)
-
             WebDriverWait(driver, 60).until(
                 expected_conditions.presence_of_element_located((By.CLASS_NAME, 'common-zones')))
             print("%d ms: Logged In" % (time.time() * 1000 - ini_timestamp))

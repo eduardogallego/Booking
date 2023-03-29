@@ -9,7 +9,8 @@ from security import Security
 
 config = Config()
 
-if os.path.isfile(config.get('credentials_file')):
+force_update = False
+if not force_update and os.path.isfile(config.get('credentials_file')):
     update_credentials = False
     with open(config.get('credentials_file')) as input_file:
         credentials = json.load(input_file)

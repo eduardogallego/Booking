@@ -40,6 +40,11 @@ def index():
     return render_template("index.html", day=day_str, court_status=court_status)
 
 
+@app.route('/calendar')
+def calendar():
+    return render_template("calendar.html")
+
+
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'images'),
@@ -49,3 +54,6 @@ def favicon():
 @app.route('/images/<image>')
 def get_image(image):
     return send_from_directory(os.path.join(app.root_path, 'images'), image)
+
+
+app.run(host='0.0.0.0', port=5000, debug=True)

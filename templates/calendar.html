@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Calendar</title>
+        <meta charset="UTF-8">
+        <meta name="msapplication-TileColor" content="#da532c">
+        <meta name="msapplication-config" content="/images/browserconfig.xml">
+        <meta name="theme-color" content="#ffffff">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+        <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+        <link rel="manifest" href="/images/site.webmanifest">
+        <link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
+        <link rel="shortcut icon" href="/images/favicon.ico">
+        <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.5/index.global.min.js'></script>
+        <script src='fullcalendar/core/locales/es.global.js'></script>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+      var calendarEl = document.getElementById('calendar');
+
+      var calendar = new FullCalendar.Calendar(calendarEl, {
+        // locale: 'es',
+        firstDay: 1,
+        initialView: 'dayGridMonth',
+        initialDate: '2023-03-07',
+        headerToolbar: {
+          left: 'title',
+          center: '',
+          right: 'prev,next',
+        },
+        footerToolbar: {
+          left: 'today',
+          center: '',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: [
+          {
+            title: 'All Day Event',
+            start: '2023-03-01'
+          },
+          {
+            title: 'Long Event',
+            start: '2023-03-07',
+            end: '2023-03-10'
+          },
+          {
+            groupId: '999',
+            title: 'Repeating Event',
+            start: '2023-03-09T16:00:00'
+          },
+          {
+            groupId: '999',
+            title: 'Repeating Event',
+            start: '2023-03-16T16:00:00'
+          },
+          {
+            title: 'Conference',
+            start: '2023-03-11',
+            end: '2023-03-13'
+          },
+          {
+            title: 'Meeting',
+            start: '2023-03-12T10:30:00',
+            end: '2023-03-12T12:30:00'
+          },
+          {
+            title: 'Lunch',
+            start: '2023-03-12T12:00:00'
+          },
+          {
+            title: 'Meeting',
+            start: '2023-03-12T14:30:00'
+          },
+          {
+            title: 'Birthday Party',
+            start: '2023-03-13T07:00:00'
+          },
+          {
+            title: 'Click for Google',
+            url: 'http://google.com/',
+            start: '2023-03-28'
+          }
+        ]
+      });
+
+      calendar.render();
+    });
+        </script>
+    </head>
+    <body>
+        <div class="card" style="margin: 10px">
+            <div class="card-body">
+                <div id='calendar'></div>
+            </div>
+        </div>
+    </body>
+</html>
