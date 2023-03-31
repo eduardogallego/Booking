@@ -32,8 +32,10 @@ if update_credentials:
         credentials = json.load(input_file)
 
 apiclient = ApiClient(config, credentials)
-print('\n===========================================================\n')
 today = date.today()
-print(apiclient.check_court_status(today))
+print('\n===========================================================\n')
+# print(apiclient.check_court_status(today))
+print('\n===========================================================\n')
+print(apiclient.get_reservations_in_month(today))
 print('\n===========================================================\n')
 # print(apiclient.reserve_court())

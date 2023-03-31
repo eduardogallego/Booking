@@ -11,6 +11,7 @@ from security import Security
 app = Flask(__name__)
 config = Config()
 status_cache = {}
+reservations_cache = {}
 
 if os.path.isfile(config.get('credentials_file')):
     update_credentials = False
@@ -66,7 +67,6 @@ def events():
             result += status_cache.get(request_date_str)
             request_date += timedelta(days=1)
             continue
-        print('Request date: %s' % request_date)
         booked_events = []
         court_status = apiclient.check_court_status(request_date)
         for hour, available in court_status.items():
@@ -75,17 +75,45 @@ def events():
                     if court == 'court1':
                         event_start = request_date.replace(hour=int(hour))
                         event_end = request_date.replace(hour=int(hour), minute=30)
+                        title = 'Pista 1'
                     else:   # court2
                         event_start = request_date.replace(hour=int(hour), minute=30)
                         event_end = request_date.replace(hour=int(hour) + 1,)
+                        title = 'Pista 2'
                     booked_events.append({
                         "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
                         "end": event_end.strftime('%Y-%m-%dT%H:%M:%S'),
+                        "title": title,
                         "display": "background", "color": "#ff9f89"})
         if now > request_date.replace(hour=22):
             status_cache[request_date_str] = booked_events
         result += booked_events
         request_date += timedelta(days=1)
+
+    start_month = start_date.replace(day=1)
+    request_months = [start_month]
+    end_month = (end_date - timedelta(days=1)).replace(day=1)
+    if end_month > start_month:
+        request_months.append(end_month)
+    for month_date in request_months:
+        reservations = []
+        reservations_date_str = month_date.strftime('%Y-%m-%d')
+        if reservations_date_str in reservations_cache:
+            result += reservations_cache.get(reservations_date_str)
+        else:
+            for reservation in apiclient.get_reservations_in_month(month_date):
+                event_start = datetime.strptime(reservation['dtFecha'], '%d/%m/%Y %H:%M:%S')
+                court_1 = 'Nº1' in reservation['tmTitulo']
+                if not court_1:
+                    event_start += timedelta(minutes=30)
+                event_end = event_start + timedelta(minutes=30)
+                title = 'Pista 1' if court_1 else 'Pista 2'
+                reservations.append({
+                    "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
+                    "end": event_end.strftime('%Y-%m-%dT%H:%M:%S'),
+                    "title": title})
+            reservations_cache[reservations_date_str] = reservations
+            result += reservations
     return result
 
 

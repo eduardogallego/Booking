@@ -2,6 +2,7 @@ import json
 import requests
 import time
 
+from calendar import monthrange
 from datetime import datetime
 
 
@@ -21,7 +22,6 @@ class ApiClient:
         }
 
     def check_court_status(self, date):
-        ini_timestamp = time.time() * 1000
         request_dict = {'dtReserva': date.strftime('%Y-%m-%d')}
         court_dict = {}
         for court_id in [1, 2]:
@@ -29,12 +29,9 @@ class ApiClient:
                 self.config.get('court1_id') if court_id == 1 else self.config.get('court2_id')
             response = requests.post(self.config.get('court_status_url'), json=request_dict, headers=self.headers)
             if response.status_code != 200:
-                print('%d ms: Error %d - %s'
-                      % (time.time() * 1000 - ini_timestamp, response.status_code, response.reason))
+                print('Error %d - %s' % (response.status_code, response.reason))
                 return
             court_dict[court_id] = json.loads(response.text.encode().decode('utf-8-sig'))
-            print("%d ms: Court %d %s"
-                  % (time.time() * 1000 - ini_timestamp, court_id, court_dict[court_id]['message']))
         status_dict = {}
         for data in court_dict[1]['data']:
             block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')  # 25/03/2023 10:00:00
@@ -43,6 +40,21 @@ class ApiClient:
             block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')
             status_dict[block.strftime('%H')]['court2'] = data['avalaibleCapacity']
         return status_dict
+
+    def get_reservations_in_month(self, date):
+        ini_day = date.replace(day=1)
+        end_day = date.replace(day=monthrange(ini_day.year, ini_day.month)[1])
+        request_dict = {"pagination": {"page": 1, "size": 0, "count": 100},
+                        "sort": {"sortBy": "dtFecha", "sortOrder": "ASC"},
+                        "fechaActivacionDesde": ini_day.strftime('%d/%m/%Y'),   # 01/03/2023
+                        "fechaActivacionHasta": end_day.strftime('%d/%m/%Y'),   # 31/03/2023
+                        "fechaDiaActual": "", "tmTitulo": "", "lstIdTipoEvento": []}
+        response = requests.post(self.config.get('reservations_url'), json=request_dict, headers=self.headers)
+        if response.status_code != 200:
+            print('Error %d - %s' % (response.status_code, response.reason))
+            return
+        response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
+        return response_dict['data']
 
     def reserve_court(self, court=None):
         ini_timestamp = time.time() * 1000
