@@ -1,37 +1,15 @@
-import json
 import os
-import time
 
 from apiclient import ApiClient
 from config import Config
 from datetime import date, datetime, timedelta
 from flask import Flask, render_template, request, send_from_directory
-from security import Security
 
 app = Flask(__name__)
 config = Config()
+apiclient = ApiClient(config)
 status_cache = {}
 reservations_cache = {}
-
-if os.path.isfile(config.get('credentials_file')):
-    update_credentials = False
-    with open(config.get('credentials_file')) as input_file:
-        credentials = json.load(input_file)
-        for cookie in credentials['cookies']:
-            if time.time() > cookie['expiry']:
-                update_credentials = True
-                break
-else:
-    update_credentials = True
-
-if update_credentials:
-    security = Security(config)
-    while not security.update_credentials():
-        print("Error updating the credentials, retry")
-    with open(config.get('credentials_file')) as input_file:
-        credentials = json.load(input_file)
-
-apiclient = ApiClient(config, credentials)
 
 
 @app.route('/', methods=['GET'])
@@ -75,11 +53,11 @@ def events():
                     if court == 'court1':
                         event_start = request_date.replace(hour=int(hour))
                         event_end = request_date.replace(hour=int(hour), minute=30)
-                        title = 'Pista 1'
+                        title = '1'
                     else:   # court2
                         event_start = request_date.replace(hour=int(hour), minute=30)
                         event_end = request_date.replace(hour=int(hour) + 1,)
-                        title = 'Pista 2'
+                        title = '2'
                     booked_events.append({
                         "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
                         "end": event_end.strftime('%Y-%m-%dT%H:%M:%S'),
@@ -107,7 +85,7 @@ def events():
                 if not court_1:
                     event_start += timedelta(minutes=30)
                 event_end = event_start + timedelta(minutes=30)
-                title = 'Pista 1' if court_1 else 'Pista 2'
+                title = '1' if court_1 else '2'
                 reservations.append({
                     "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
                     "end": event_end.strftime('%Y-%m-%dT%H:%M:%S'),

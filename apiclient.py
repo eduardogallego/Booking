@@ -1,4 +1,5 @@
 import json
+import os
 import requests
 import time
 
@@ -8,20 +9,50 @@ from datetime import datetime
 
 class ApiClient:
 
-    def __init__(self, config, credentials):
+    def __init__(self, config):
         self.config = config
-        cookie_header = '; '.join('%s=%s' % (cookie['name'], cookie['value']) for cookie in credentials['cookies'])
+        if os.path.isfile(config.get('credentials_file')):
+            with open(config.get('credentials_file')) as input_file:
+                credentials = json.load(input_file)
+            self.token = credentials['token']
+            self.token_expiration_date = credentials['token_expiration_date']
+        else:
+            self.token = None
+            self.token_expiration_date = None
         self.headers = {
             'Accept': 'application/json',
-            'Authorization': credentials['authorization'],
+            'Authorization': self.token,
             'Content-Type': 'application/json',
-            'Cookie': cookie_header,
             'Host': 'private.tucomunidapp.com',
             'Origin': 'https://private.tucomunidapp.com',
             'Referer': 'https://private.tucomunidapp.com/community/booking-new/18551'
         }
 
+    def login(self):
+        print('== Edu == > login')
+        requests_dict = {"Password": self.config.get('login_password'),
+                         "User": self.config.get('login_user'),
+                         "LoginType": "3", "Invitations": True}
+        response = requests.post('https://api.iesa.es/tcsecurity/api/v1/login', json=requests_dict)
+        if response.status_code != 200:
+            print('Error %d - %s' % (response.status_code, response.reason))
+            return False
+        response_dict = json.loads(response.text)
+        self.token = response_dict['Token']
+        self.token_expiration_date = response_dict['TokenExpirationDate']
+        self.headers['Authorization'] = self.token
+        with open(self.config.get('credentials_file'), 'w') as outfile:
+            json.dump({'token': self.token, 'token_expiration_date': self.token_expiration_date}, outfile)
+        return True
+
+    def _check_credentials(self):
+        if not self.token or time.time() > self.token_expiration_date:
+            while not self.login():
+                time.sleep(1)
+
     def check_court_status(self, date):
+        print('== Edu == > check_court_status')
+        self._check_credentials()
         request_dict = {'dtReserva': date.strftime('%Y-%m-%d')}
         court_dict = {}
         for court_id in [1, 2]:
@@ -30,7 +61,7 @@ class ApiClient:
             response = requests.post(self.config.get('court_status_url'), json=request_dict, headers=self.headers)
             if response.status_code != 200:
                 print('Error %d - %s' % (response.status_code, response.reason))
-                return
+                return None
             court_dict[court_id] = json.loads(response.text.encode().decode('utf-8-sig'))
         status_dict = {}
         for data in court_dict[1]['data']:
@@ -42,6 +73,8 @@ class ApiClient:
         return status_dict
 
     def get_reservations_in_month(self, date):
+        print('== Edu == > get_reservations_in_month')
+        self._check_credentials()
         ini_day = date.replace(day=1)
         end_day = date.replace(day=monthrange(ini_day.year, ini_day.month)[1])
         request_dict = {"pagination": {"page": 1, "size": 0, "count": 100},
@@ -52,11 +85,13 @@ class ApiClient:
         response = requests.post(self.config.get('reservations_url'), json=request_dict, headers=self.headers)
         if response.status_code != 200:
             print('Error %d - %s' % (response.status_code, response.reason))
-            return
+            return None
         response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
         return response_dict['data']
 
     def reserve_court(self, court=None):
+        print('== Edu == > reserve_court')
+        self._check_credentials()
         ini_timestamp = time.time() * 1000
         request_dict = {'dtInicioReserva': '2023-03-25T11:00:00', 'dtFinReserva': '2023-03-25T12:00:00',
                         'impPrecio': '0', 'idUsuario': self.config.get('user_id'), 'idComunidad': '4100059',
