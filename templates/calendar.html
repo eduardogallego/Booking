@@ -48,42 +48,7 @@
             alert('Clicked on: ' + info.dateStr);
             window.location.href = 'book/' + info.dateStr;
         },
-        events: [
-          {
-            title: 'Santi',
-            start: '2023-03-30T13:00:00',
-            end: '2023-03-30T14:00:00',
-          },
-          {
-            start: '2023-03-30T13:00:00',
-            end: '2023-03-30T14:00:00',
-            display: 'background',
-            color: '#ff9f89'
-          },
-          {
-            start: '2023-03-30T19:00:00',
-            end: '2023-03-30T20:00:00',
-            display: 'background',
-            color: '#ff9f89'
-          },
-          {
-            start: '2023-03-30T19:00:00',
-            end: '2023-03-30T20:00:00',
-            display: 'background',
-            color: '#ff9f89'
-          },
-          {
-            start: '2023-03-30T20:00:00',
-            end: '2023-03-30T21:00:00',
-            display: 'background',
-            color: '#ff9f89'
-          },
-          {
-            title: 'Alberto',
-            start: '2023-03-30T19:00:00',
-            end: '2023-03-30T10:00:00',
-          }
-        ]
+        events: '/events'
       });
       calendar.render();
     });
