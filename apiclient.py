@@ -4,7 +4,7 @@ import requests
 import time
 
 from calendar import monthrange
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class ApiClient:
@@ -50,8 +50,8 @@ class ApiClient:
             while not self.login():
                 time.sleep(1)
 
-    def check_court_status(self, date):
-        print('== Edu == > check_court_status')
+    def get_courts_status(self, date):
+        print('== Edu == > get_courts_status')
         self._check_credentials()
         request_dict = {'dtReserva': date.strftime('%Y-%m-%d')}
         court_dict = {}
@@ -72,8 +72,8 @@ class ApiClient:
             status_dict[block.strftime('%H')]['court2'] = data['avalaibleCapacity']
         return status_dict
 
-    def get_reservations_in_month(self, date):
-        print('== Edu == > get_reservations_in_month')
+    def get_month_reservations(self, date):
+        print('== Edu == > get_month_reservations')
         self._check_credentials()
         ini_day = date.replace(day=1)
         end_day = date.replace(day=monthrange(ini_day.year, ini_day.month)[1])
@@ -89,11 +89,12 @@ class ApiClient:
         response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
         return response_dict['data']
 
-    def reserve_court(self, court=None):
+    def reserve_court(self, timestamp, court=None):
         print('== Edu == > reserve_court')
         self._check_credentials()
-        ini_timestamp = time.time() * 1000
-        request_dict = {'dtInicioReserva': '2023-03-25T11:00:00', 'dtFinReserva': '2023-03-25T12:00:00',
+        booking_end = timestamp + timedelta(hours=1)
+        request_dict = {'dtInicioReserva': timestamp.strftime('%Y-%m-%dT%H:%M:%S'),
+                        'dtFinReserva': booking_end.strftime('%Y-%m-%dT%H:%M:%S'),
                         'impPrecio': '0', 'idUsuario': self.config.get('user_id'), 'idComunidad': '4100059',
                         'idProperty': '16288528', 'numYoungBooking': 0, 'numOldBooking': 0, 'blUserIncluded': '1'}
         for court_id in [1, 2]:
@@ -102,10 +103,11 @@ class ApiClient:
                     self.config.get('court1_id') if court_id == 1 else self.config.get('court2_id')
                 response = requests.post(self.config.get('court_booking_url'), json=request_dict, headers=self.headers)
                 if response.status_code != 200:
-                    print('%d ms: Error %d - %s'
-                          % (time.time() * 1000 - ini_timestamp, response.status_code, response.reason))
-                    return False
+                    print('Error %d - %s' % (response.status_code, response.reason))
+                    return response.reason
                 response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
-                print("%d ms: Court %d Reservation %s"
-                      % (time.time() * 1000 - ini_timestamp, court_id, response_dict['message']))
-        return True
+                if response_dict['code'] == 4:
+                    print('Error %d - %s' % (response_dict['code'], response_dict['message']))
+                    return response_dict['message']
+                print("Court %d Reservation %d %s" % (court_id, response_dict['code'], response_dict['message']))
+        return None
