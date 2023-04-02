@@ -111,3 +111,18 @@ class ApiClient:
                     return response_dict['message']
                 print("Court %d Reservation %d %s" % (court_id, response_dict['code'], response_dict['message']))
         return None
+
+    def delete_reservation(self, booking_id):
+        print('== Edu == > delete_reservation')
+        self._check_credentials()
+        url = '%s/%s' % (self.config.get('court_booking_url'), booking_id)
+        response = requests.delete(url, headers=self.headers)
+        if response.status_code != 200:
+            print('Error %d - %s' % (response.status_code, response.reason))
+            return response.reason
+        response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
+        if response_dict['code'] == 4:
+            print('Error %d - %s' % (response_dict['code'], response_dict['message']))
+            return response_dict['message']
+        print("Reservation %s deleted" % booking_id)
+        return None

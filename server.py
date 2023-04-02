@@ -10,6 +10,7 @@ config = Config()
 apiclient = ApiClient(config)
 status_cache = {}
 reservations_cache = {}
+events_cache = {}
 
 
 @app.route('/', methods=['GET'])
@@ -87,10 +88,13 @@ def events():
                     event_start += timedelta(minutes=30)
                 event_end = event_start + timedelta(minutes=30)
                 title = '1' if court_1 else '2'
-                reservations.append({
+                event = {
+                    "id": str(reservation['idEvento']),
                     "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
                     "end": event_end.strftime('%Y-%m-%dT%H:%M:%S'),
-                    "title": title})
+                    "title": title}
+                reservations.append(event)
+                events_cache[event['id']] = event
             reservations_cache[reservations_month] = reservations
             result += reservations
     return result
@@ -103,6 +107,15 @@ def booking_form(booking_time):
     timestamp = timestamp.replace(minute=0)
     return render_template("booking_form.html", booking_date=timestamp.strftime('%Y-%m-%d'),
                            booking_time=timestamp.strftime('%H:%M'), court=court, error=None)
+
+
+@app.route('/event_form/<event_id>', methods=['GET'])
+def event_form(event_id):
+    event = events_cache[event_id]
+    event_start = datetime.strptime(event['start'], '%Y-%m-%dT%H:%M:%S')
+    court = 'Court 1' if event['title'] == '1' else 'Court 2'
+    return render_template("event_form.html", booking=event_start.strftime('%d/%m/%Y %H:%M:%S'),
+                           court=court, id=event_id, error=None)
 
 
 @app.route('/booking_action', methods=['POST'])
@@ -127,6 +140,18 @@ def booking_action():
         return redirect("calendar/%s" % timestamp.strftime('%Y-%m-%d'))
 
 
+@app.route('/delete_action', methods=['POST'])
+def delete_action():
+    error = apiclient.delete_reservation(booking_id=request.form['id'])
+    if error:
+        return render_template("event_form.html", booking=request.form['booking'],
+                               court=request.form['court'], id=request.form['id'], error=error)
+    else:
+        timestamp = datetime.strptime(request.form['booking'], '%d/%m/%Y %H:%M:%S')
+        reservations_cache.pop(timestamp.strftime('%Y-%m'))
+        return redirect("calendar/%s" % timestamp.strftime('%Y-%m-%d'))
+
+
 @app.route('/favicon.ico', methods=['GET'])
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'images'),
@@ -138,4 +163,4 @@ def get_image(image):
     return send_from_directory(os.path.join(app.root_path, 'images'), image)
 
 
-app.run(host='0.0.0.0', port=5000, debug=True)
+app.run(host='0.0.0.0', port=config.get('port'), debug=True)

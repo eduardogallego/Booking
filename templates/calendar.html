@@ -62,7 +62,10 @@
         dateClick: function(info) {
             window.location.href = '/booking_form/' + info.dateStr;
         },
-        events: '/events'
+        events: '/events',
+        eventClick: function(info) {
+            window.location.href = '/event_form/' + info.event.id;
+        }
       });
       calendar.render();
     });
