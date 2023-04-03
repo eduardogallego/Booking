@@ -152,7 +152,9 @@
             <br>
         {% endblock error %}
     {% endif %}
-    <button type="button" class="btn btn-secondary" onclick="history.back()">Cancel</button>
-    <button type="submit" class="btn btn-primary">Book</button>
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <a href="/calendar/{{ booking_date }}" class="btn btn-secondary me-md-2">Cancel</a>
+        <button class="btn btn-primary" type="submit">Book</button>
+    </div>
 </form>
 {% endblock %}

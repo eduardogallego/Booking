@@ -3,10 +3,18 @@
 {% block card_body %}
 <form action="/delete_action" method="POST">
     <div class="form-group row">
-        <label for="booking" class="col-sm-2 col-form-label">Booking</label>
+        <label for="booking_date" class="col-sm-2 col-form-label">Booking date</label>
         <div class="col-sm-10">
-            <input type="text" readonly class="form-control" id="booking"
-                   name="booking" value="{{ booking }}">
+            <input type="text" readonly class="form-control" id="booking_date"
+                   name="booking_date" value="{{ booking_date }}">
+        </div>
+    </div>
+    <br>
+    <div class="form-group row">
+        <label for="booking_time" class="col-sm-2 col-form-label">Booking time</label>
+        <div class="col-sm-10">
+            <input type="text" readonly class="form-control" id="booking_time"
+                   name="booking_time" value="{{ booking_time }}">
         </div>
     </div>
     <br>
@@ -31,7 +39,9 @@
             <br>
         {% endblock error %}
     {% endif %}
-    <button type="button" class="btn btn-secondary" onclick="history.back()">Cancel</button>
-    <button type="submit" class="btn btn-primary">Delete</button>
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <a href="/calendar/{{ booking_date }}" class="btn btn-secondary me-md-2">Cancel</a>
+        <button class="btn btn-primary" type="submit">Delete</button>
+    </div>
 </form>
 {% endblock %}

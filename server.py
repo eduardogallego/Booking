@@ -2,11 +2,10 @@ import logging
 import os
 
 from apiclient import ApiClient
-from utils import Config
 from datetime import date, datetime, timedelta
 from flask import Flask, redirect, render_template, request, send_from_directory
-from flask_login import LoginManager, login_required, login_user, logout_user
-from utils import Logger, User
+from flask_login import LoginManager, login_required, login_user
+from utils import Config, Logger, User
 from werkzeug import serving
 
 Logger()
@@ -47,20 +46,6 @@ def login_action():
         user.logout()
         logger.warning("Authentication error %s %s" % (form_user, form_password))
         return render_template("login_form.html", error="Authentication error: wrong user/pwd")
-
-
-@app.route('/logout', methods=['GET'])
-@login_required
-def logout():
-    pass
-
-
-@app.route('/logout_action', methods=['POST'])
-@login_required
-def logout_action():
-    user.logout()
-    logout_user()
-    return redirect("/login")
 
 
 @app.route('/', methods=['GET'])
@@ -193,10 +178,10 @@ def booking_action():
 @login_required
 def delete_form(event_id):
     event = events_cache[event_id]
-    event_start = datetime.strptime(event['start'], '%Y-%m-%dT%H:%M:%S')
+    timestamp = datetime.strptime(event['start'], '%Y-%m-%dT%H:%M:%S').replace(minute=0)
     court = 'Court 1' if event['title'] == '1' else 'Court 2'
-    return render_template("delete_form.html", booking=event_start.strftime('%d/%m/%Y %H:%M:%S'),
-                           court=court, id=event_id, error=None)
+    return render_template("delete_form.html", booking_date=timestamp.strftime('%Y-%m-%d'),
+                           booking_time=timestamp.strftime('%H:%M'), court=court, id=event_id, error=None)
 
 
 @app.route('/delete_action', methods=['POST'])
@@ -207,9 +192,9 @@ def delete_action():
         return render_template("delete_form.html", booking=request.form['booking'],
                                court=request.form['court'], id=request.form['id'], error=error)
     else:
-        timestamp = datetime.strptime(request.form['booking'], '%d/%m/%Y %H:%M:%S')
+        timestamp = datetime.strptime(request.form['booking_date'], '%Y-%m-%d')
         reservations_cache.pop(timestamp.strftime('%Y-%m'))
-        return redirect("/calendar/%s" % timestamp.strftime('%Y-%m-%d'))
+        return redirect("/calendar/%s" % request.form['booking_date'])
 
 
 @app.route('/favicon.ico', methods=['GET'])
