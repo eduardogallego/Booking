@@ -6,8 +6,7 @@ from utils import Config
 from datetime import date, datetime, timedelta
 from flask import Flask, redirect, render_template, request, send_from_directory
 from flask_login import LoginManager, login_required, login_user, logout_user
-from utils import Logger
-from user import User
+from utils import Logger, User
 from werkzeug import serving
 
 Logger()
