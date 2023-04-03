@@ -39,7 +39,8 @@ def login():
 def login_action():
     form_user = request.form['user']
     form_password = request.form['password']
-    if user.get_user_name() == form_user and user.login(form_password) and login_user(user):
+    if user.get_user_name() == form_user and user.login(form_password) \
+            and login_user(user=user, remember=True, duration=timedelta(days=30)):
         logger.info("User %s authenticated" % form_user)
         return redirect("/calendar")
     else:
