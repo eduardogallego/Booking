@@ -23,6 +23,7 @@ class Logger:
         root.setLevel(logging.INFO)
         root.addHandler(handler)
 
+
 class User:
     def __init__(self, user_id, user_name, user_password):
         self.user_id = user_id
