@@ -51,10 +51,7 @@ def login_action():
 @app.route('/', methods=['GET'])
 @login_required
 def index():
-    day = date.today()
-    day_str = day.strftime('%A %-d %B')
-    court_status = apiclient.get_courts_status(day)
-    return render_template("index.html", day=day_str, court_status=court_status)
+    return redirect("/calendar/%s" % date.today().strftime('%Y-%m-%d'))
 
 
 @app.route('/calendar', defaults={'booking_date': None}, methods=['GET'])
