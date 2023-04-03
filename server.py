@@ -1,19 +1,70 @@
+import logging
 import os
 
 from apiclient import ApiClient
-from config import Config
+from utils import Config
 from datetime import date, datetime, timedelta
 from flask import Flask, redirect, render_template, request, send_from_directory
+from flask_login import LoginManager, login_required, login_user, logout_user
+from utils import Logger
+from user import User
+from werkzeug import serving
 
-app = Flask(__name__)
+Logger()
+serving._log_add_style = False          # disable colors in werkzeug server
+logger = logging.getLogger('server')
 config = Config()
+app = Flask(__name__)
+app.secret_key = config.get('secret_key')
 apiclient = ApiClient(config)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "/login"
+user = User(config.get('user_id'), config.get('user_name'), config.get('user_password'))
 status_cache = {}
 reservations_cache = {}
 events_cache = {}
 
 
+@login_manager.user_loader
+def load_user(user_id):
+    return user if user.get_id() == user_id else None
+
+
+@app.route('/login', methods=['GET'])
+def login():
+    return render_template("login_form.html", error=None)
+
+
+@app.route('/login_action', methods=['POST'])
+def login_action():
+    form_user = request.form['user']
+    form_password = request.form['password']
+    if user.get_user_name() == form_user and user.login(form_password) and login_user(user):
+        logger.info("User %s authenticated" % form_user)
+        return redirect("/calendar")
+    else:
+        user.logout()
+        logger.warning("Authentication error %s %s" % (form_user, form_password))
+        return render_template("login_form.html", error="Authentication error: wrong user/pwd")
+
+
+@app.route('/logout', methods=['GET'])
+@login_required
+def logout():
+    pass
+
+
+@app.route('/logout_action', methods=['POST'])
+@login_required
+def logout_action():
+    user.logout()
+    logout_user()
+    return redirect("/login")
+
+
 @app.route('/', methods=['GET'])
+@login_required
 def index():
     day = date.today()
     day_str = day.strftime('%A %-d %B')
@@ -23,6 +74,7 @@ def index():
 
 @app.route('/calendar', defaults={'booking_date': None}, methods=['GET'])
 @app.route('/calendar/<booking_date>', methods=['GET'])
+@login_required
 def calendar(booking_date):
     if booking_date is None:
         booking_date = date.today().strftime('%Y-%m-%d')
@@ -30,6 +82,7 @@ def calendar(booking_date):
 
 
 @app.route('/events', methods=['GET'])
+@login_required
 def events():
     args = request.args
     start = args['start'].split('T', 1)[0]
@@ -49,6 +102,9 @@ def events():
             continue
         booked_events = []
         court_status = apiclient.get_courts_status(request_date)
+        if court_status is None:
+            logger.warning("Court Status %s == None" % request_date.strftime('%Y-%m-%d'))
+            continue
         for hour, available in court_status.items():
             for court in ['court1', 'court2']:
                 if available[court] == '0':
@@ -101,6 +157,7 @@ def events():
 
 
 @app.route('/booking_form/<booking_time>', methods=['GET'])
+@login_required
 def booking_form(booking_time):
     timestamp = datetime.strptime(booking_time.split('+', 1)[0], '%Y-%m-%dT%H:%M:%S')
     court = 'Court 2' if timestamp.minute == 30 else 'Court 1'
@@ -109,16 +166,8 @@ def booking_form(booking_time):
                            booking_time=timestamp.strftime('%H:%M'), court=court, error=None)
 
 
-@app.route('/event_form/<event_id>', methods=['GET'])
-def event_form(event_id):
-    event = events_cache[event_id]
-    event_start = datetime.strptime(event['start'], '%Y-%m-%dT%H:%M:%S')
-    court = 'Court 1' if event['title'] == '1' else 'Court 2'
-    return render_template("event_form.html", booking=event_start.strftime('%d/%m/%Y %H:%M:%S'),
-                           court=court, id=event_id, error=None)
-
-
 @app.route('/booking_action', methods=['POST'])
+@login_required
 def booking_action():
     form_date = request.form['booking_date']
     form_time = request.form['booking_time']
@@ -137,19 +186,30 @@ def booking_action():
                                booking_time=form_time, court=form_court, error=error)
     else:
         reservations_cache.pop(timestamp.strftime('%Y-%m'))
-        return redirect("calendar/%s" % timestamp.strftime('%Y-%m-%d'))
+        return redirect("/calendar/%s" % timestamp.strftime('%Y-%m-%d'))
+
+
+@app.route('/delete_form/<event_id>', methods=['GET'])
+@login_required
+def delete_form(event_id):
+    event = events_cache[event_id]
+    event_start = datetime.strptime(event['start'], '%Y-%m-%dT%H:%M:%S')
+    court = 'Court 1' if event['title'] == '1' else 'Court 2'
+    return render_template("delete_form.html", booking=event_start.strftime('%d/%m/%Y %H:%M:%S'),
+                           court=court, id=event_id, error=None)
 
 
 @app.route('/delete_action', methods=['POST'])
+@login_required
 def delete_action():
     error = apiclient.delete_reservation(booking_id=request.form['id'])
     if error:
-        return render_template("event_form.html", booking=request.form['booking'],
+        return render_template("delete_form.html", booking=request.form['booking'],
                                court=request.form['court'], id=request.form['id'], error=error)
     else:
         timestamp = datetime.strptime(request.form['booking'], '%d/%m/%Y %H:%M:%S')
         reservations_cache.pop(timestamp.strftime('%Y-%m'))
-        return redirect("calendar/%s" % timestamp.strftime('%Y-%m-%d'))
+        return redirect("/calendar/%s" % timestamp.strftime('%Y-%m-%d'))
 
 
 @app.route('/favicon.ico', methods=['GET'])

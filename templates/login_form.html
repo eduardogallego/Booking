@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block card_body %}
+<form action="/login_action" method="POST">
+    <div class="form-group row">
+        <label for="user" class="col-sm-2 col-form-label">User</label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" id="user" name="user">
+        </div>
+    </div>
+    <br>
+    <div class="form-group row">
+        <label for="password" class="col-sm-2 col-form-label">Password</label>
+        <div class="col-sm-10">
+            <input type="password" class="form-control" id="password" name="password">
+        </div>
+    </div>
+    <br>
+    {% if error %}
+        {% block error %}
+            <div class="alert alert-danger" role="alert">{{ error }}</div>
+            <br>
+        {% endblock error %}
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Login</button>
+</form>
+{% endblock %}

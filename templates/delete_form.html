@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block card_body %}
+<form action="/delete_action" method="POST">
+    <div class="form-group row">
+        <label for="booking" class="col-sm-2 col-form-label">Booking</label>
+        <div class="col-sm-10">
+            <input type="text" readonly class="form-control" id="booking"
+                   name="booking" value="{{ booking }}">
+        </div>
+    </div>
+    <br>
+    <div class="form-group row">
+        <label for="court" class="col-sm-2 col-form-label">Court</label>
+        <div class="col-sm-10">
+            <input type="text" readonly class="form-control" id="court"
+                   name="court" value="{{ court }}">
+        </div>
+    </div>
+    <br>
+    <div class="form-group row">
+        <label for="id" class="col-sm-2 col-form-label">Id</label>
+        <div class="col-sm-10">
+            <input type="text" readonly class="form-control" id="id" name="id" value="{{ id }}">
+        </div>
+    </div>
+    <br>
+    {% if error %}
+        {% block error %}
+            <div class="alert alert-danger" role="alert">{{ error }}</div>
+            <br>
+        {% endblock error %}
+    {% endif %}
+    <button type="button" class="btn btn-secondary" onclick="history.back()">Cancel</button>
+    <button type="submit" class="btn btn-primary">Delete</button>
+</form>
+{% endblock %}
