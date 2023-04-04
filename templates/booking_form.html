@@ -154,7 +154,11 @@
     {% endif %}
     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
         <a href="/calendar/{{ booking_date }}" class="btn btn-secondary me-md-2">Cancel</a>
-        <button class="btn btn-primary" type="submit">Book</button>
+        <button id="submit" class="btn btn-primary" type="submit" onclick="swapButton()">Book</button>
+        <button id="spinner" class="btn btn-primary" type="button" disabled style="display: none">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Book
+        </button>
     </div>
 </form>
 {% endblock %}

@@ -63,16 +63,19 @@ class ApiClient:
                 self.config.get('court1_id') if court_id == 1 else self.config.get('court2_id')
             response = requests.post(self.config.get('court_status_url'), json=request_dict, headers=self.headers)
             if response.status_code != 200:
-                self.logger.error('Error %d - %s' % (response.status_code, response.reason))
+                self.logger.error('Error court_status %s: %d - %s' % (date_str, response.status_code, response.reason))
                 return None
             court_dict[court_id] = json.loads(response.text.encode().decode('utf-8-sig'))
         status_dict = {}
-        for data in court_dict[1]['data']:
-            block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')  # 25/03/2023 10:00:00
-            status_dict[block.strftime('%H')] = {'court1': data['avalaibleCapacity']}
-        for data in court_dict[2]['data']:
-            block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')
-            status_dict[block.strftime('%H')]['court2'] = data['avalaibleCapacity']
+        if len(court_dict) == 2:
+            for data in court_dict[1]['data']:
+                block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')  # 25/03/2023 10:00:00
+                status_dict[block.strftime('%H')] = {'court1': data['avalaibleCapacity']}
+            for data in court_dict[2]['data']:
+                block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')
+                status_dict[block.strftime('%H')]['court2'] = data['avalaibleCapacity']
+        else:
+            self.logger.error("Error court_status %s: court_dict len %d" % (date_str, len(court_dict)))
         return status_dict
 
     def get_month_reservations(self, date):

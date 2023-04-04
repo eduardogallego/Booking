@@ -26,13 +26,12 @@
         </div>
     </div>
     <br>
-    <div class="form-group row">
+    <div class="form-group row" style="display: none">
         <label for="id" class="col-sm-2 col-form-label">Id</label>
         <div class="col-sm-10">
             <input type="text" readonly class="form-control" id="id" name="id" value="{{ id }}">
         </div>
     </div>
-    <br>
     {% if error %}
         {% block error %}
             <div class="alert alert-danger" role="alert">{{ error }}</div>
@@ -41,7 +40,11 @@
     {% endif %}
     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
         <a href="/calendar/{{ booking_date }}" class="btn btn-secondary me-md-2">Cancel</a>
-        <button class="btn btn-primary" type="submit">Delete</button>
+        <button id="submit" class="btn btn-primary" type="submit" onclick="swapButton()">Delete</button>
+        <button id="spinner" class="btn btn-primary" type="button" disabled style="display: none">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Delete
+        </button>
     </div>
 </form>
 {% endblock %}

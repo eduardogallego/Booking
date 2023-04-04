@@ -23,7 +23,11 @@
         {% endblock error %}
     {% endif %}
     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-        <button class="btn btn-primary" type="submit">Login</button>
+        <button id="submit" class="btn btn-primary" type="submit" onclick="swapButton()">Login</button>
+        <button id="spinner" class="btn btn-primary" type="button" disabled style="display: none">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Login
+        </button>
     </div>
 </form>
 {% endblock %}
