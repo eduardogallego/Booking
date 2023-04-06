@@ -96,28 +96,25 @@ class ApiClient:
         response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
         return response_dict['data']
 
-    def reserve_court(self, timestamp, court=None):
-        court_str = '1 and 2' if court is None else str(court)
+    def reserve_court(self, timestamp, court):
         date_str = timestamp.strftime('%Y-%m-%d')
-        self.logger.info('Reserve court %s: %s' % (court_str, date_str))
+        self.logger.info('Reserve court %d: %s' % (court, date_str))
         self._check_credentials()
         booking_end = timestamp + timedelta(hours=1)
         request_dict = {'dtInicioReserva': timestamp.strftime('%Y-%m-%dT%H:%M:%S'),
                         'dtFinReserva': booking_end.strftime('%Y-%m-%dT%H:%M:%S'),
-                        'impPrecio': '0', 'idUsuario': self.config.get('user_id'), 'idComunidad': '4100059',
-                        'idProperty': '16288528', 'numYoungBooking': 0, 'numOldBooking': 0, 'blUserIncluded': '1'}
-        for court_id in [1, 2]:
-            if court is None or court == court_id:
-                request_dict['idElementoComun'] = \
-                    self.config.get('court1_id') if court_id == 1 else self.config.get('court2_id')
-                response = requests.post(self.config.get('court_booking_url'), json=request_dict, headers=self.headers)
-                if response.status_code != 200:
-                    self.logger.error('Error %d - %s' % (response.status_code, response.reason))
-                    return response.reason
-                response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
-                if response_dict['code'] == 4:
-                    self.logger.error('Error %d - %s' % (response_dict['code'], response_dict['message']))
-                    return response_dict['message']
+                        'idUsuario': self.config.get('user_id'),
+                        'impPrecio': '0', 'idComunidad': '4100059', 'idProperty': '16288528',
+                        'numYoungBooking': 0, 'numOldBooking': 0, 'blUserIncluded': '1',
+                        'idElementoComun': self.config.get('court1_id') if court == 1 else self.config.get('court2_id')}
+        response = requests.post(self.config.get('court_booking_url'), json=request_dict, headers=self.headers)
+        if response.status_code != 200:
+            self.logger.error('Error %d - %s' % (response.status_code, response.reason))
+            return response.reason
+        response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
+        if response_dict['code'] == 4:
+            self.logger.error('Error %d - %s' % (response_dict['code'], response_dict['message']))
+            return response_dict['message']
         return None
 
     def delete_reservation(self, booking_id):

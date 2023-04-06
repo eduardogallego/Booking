@@ -5,6 +5,7 @@ from apiclient import ApiClient
 from datetime import date, datetime, timedelta
 from flask import Flask, redirect, render_template, request, send_from_directory
 from flask_login import LoginManager, login_required, login_user
+from scheduler import Scheduler
 from utils import Config, Logger, User
 from werkzeug import serving
 
@@ -14,7 +15,7 @@ logger = logging.getLogger('server')
 config = Config()
 app = Flask(__name__)
 app.secret_key = config.get('secret_key')
-apiclient = ApiClient(config)
+api_client = ApiClient(config)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "/login"
@@ -85,7 +86,7 @@ def events():
             request_date += timedelta(days=1)
             continue
         booked_events = []
-        court_status = apiclient.get_courts_status(request_date)
+        court_status = api_client.get_courts_status(request_date)
         if court_status is None:
             logger.warning("Court Status %s == None" % request_date.strftime('%Y-%m-%d'))
             continue
@@ -121,7 +122,7 @@ def events():
         if reservations_month in reservations_cache:
             result += reservations_cache.get(reservations_month)
         else:
-            for reservation in apiclient.get_month_reservations(month_date):
+            for reservation in api_client.get_month_reservations(month_date):
                 event_start = datetime.strptime(reservation['dtFecha'], '%d/%m/%Y %H:%M:%S')
                 court_1 = 'Nº1' in reservation['tmTitulo']
                 if not court_1:
@@ -173,34 +174,34 @@ def booking_action():
         event_start = timestamp
         if not court or court == 1:
             event_id = '%s_1' % timestamp.strftime('fut_%Y-%m-%dT%H:%M:%S')
-            event_end = event_start + timedelta(minutes=30)
             future_events[event_id] = {"id": event_id,
                                        "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
-                                       "end": event_end.strftime('%Y-%m-%dT%H:%M:%S'),
+                                       "end": (event_start + timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S'),
                                        "title": '1',
                                        "color": "#198754"}
         if not court or court == 2:
             event_id = '%s_2' % timestamp.strftime('fut_%Y-%m-%dT%H:%M:%S')
-            event_start += timedelta(minutes=30)
-            event_end = event_start + timedelta(minutes=30)
             future_events[event_id] = {"id": event_id,
-                                       "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
-                                       "end": event_end.strftime('%Y-%m-%dT%H:%M:%S'),
+                                       "start": (event_start + timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S'),
+                                       "end": (event_start + timedelta(minutes=60)).strftime('%Y-%m-%dT%H:%M:%S'),
                                        "title": '2',
                                        "color": "#198754"}
+        Scheduler(event_start, court).start()
         return redirect("/calendar/%s" % timestamp.strftime('%Y-%m-%d'))
 
     # book events in range
     if timestamp < now:
         error = 'La fecha de la reserva debe ser mayor a la actual'
     else:
-        error = apiclient.reserve_court(timestamp=timestamp, court=court)
-    if error:
-        return render_template("booking_form.html", booking_date=form_date,
-                               booking_time=form_time, court=form_court, error=error)
-    else:
-        reservations_cache.pop(timestamp.strftime('%Y-%m'))
-        return redirect("/calendar/%s" % timestamp.strftime('%Y-%m-%d'))
+        for court_id in [1, 2]:
+            if court is None or court == court_id:
+                error = api_client.reserve_court(timestamp=timestamp, court=court_id)
+                if error:
+                    return render_template("booking_form.html", booking_date=form_date,
+                                           booking_time=form_time, court=form_court, error=error)
+                else:
+                    reservations_cache.pop(timestamp.strftime('%Y-%m'), None)
+    return redirect("/calendar/%s" % timestamp.strftime('%Y-%m-%d'))
 
 
 @app.route('/delete_form/<event_id>', methods=['GET'])
@@ -220,7 +221,7 @@ def delete_action():
     if booking_id.startswith('fut_'):
         future_events.pop(booking_id)
     else:
-        error = apiclient.delete_reservation(booking_id=booking_id)
+        error = api_client.delete_reservation(booking_id=booking_id)
         if error:
             return render_template("delete_form.html", booking=request.form['booking'],
                                    court=request.form['court'], id=request.form['id'], error=error)
