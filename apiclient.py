@@ -8,13 +8,16 @@ from calendar import monthrange
 from datetime import datetime, timedelta
 
 
+CREDENTIALS_FILE = 'credentials.json'
+
+
 class ApiClient:
 
     def __init__(self, config):
         self.logger = logging.getLogger('api-client')
         self.config = config
-        if os.path.isfile(config.get('credentials_file')):
-            with open(config.get('credentials_file')) as input_file:
+        if os.path.isfile(CREDENTIALS_FILE):
+            with open(CREDENTIALS_FILE) as input_file:
                 credentials = json.load(input_file)
             self.token = credentials['token']
             self.token_expiration_date = credentials['token_expiration_date']
@@ -43,7 +46,7 @@ class ApiClient:
         self.token = response_dict['Token']
         self.token_expiration_date = response_dict['TokenExpirationDate']
         self.headers['Authorization'] = self.token
-        with open(self.config.get('credentials_file'), 'w') as outfile:
+        with open(CREDENTIALS_FILE, 'w') as outfile:
             json.dump({'token': self.token, 'token_expiration_date': self.token_expiration_date}, outfile)
         return True
 

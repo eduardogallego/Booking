@@ -2,5 +2,6 @@
 /workingdir/
 /config.json
 /credentials.json
+/future_events.json
 /test.py
 /booking.log
