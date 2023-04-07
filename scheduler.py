@@ -97,7 +97,7 @@ class Scheduler(Thread):
             # Launch burst of requests
             status = Status()
             threads = []
-            for delay_sec in [-0.2, -0.1, 0, 0.1, 0.2, 0.5, 1]:
+            for delay_sec in [-0.2, -0.05, 0.05, 0.2, 0.5, 1]:
                 thread = Request(timestamp=self.timestamp, court=self.court, offset_sec=ntp_response.offset,
                                  delay_sec=delay_sec, status=status, config=self.config)
                 threads.append(thread)

@@ -17,7 +17,7 @@ class Logger:
     def __init__(self):
         handler = logging.handlers.WatchedFileHandler('booking.log')
         handler.setFormatter(logging.Formatter(
-            fmt="%(asctime)s - %(levelname)s - %(name)s: %(message)s",
+            fmt="%(asctime)s.%(msecs)03d - %(levelname)s - %(name)s: %(message)s",
             datefmt="%d/%b/%Y %H:%M:%S"))
         root = logging.getLogger()
         root.setLevel(logging.INFO)
