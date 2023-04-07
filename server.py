@@ -5,7 +5,7 @@ from apiclient import ApiClient
 from datetime import date, datetime, timedelta
 from flask import Flask, redirect, render_template, request, send_from_directory
 from flask_login import LoginManager, login_required, login_user
-from scheduler import future_events, Scheduler
+from scheduler import FutureEvents, Scheduler
 from utils import Config, Logger, User
 from werkzeug import serving
 
@@ -23,6 +23,7 @@ user = User(config.get('user_id'), config.get('user_name'), config.get('user_pas
 status_cache = {}
 reservations_cache = {}
 events_cache = {}
+future_events = FutureEvents()
 
 
 @login_manager.user_loader
