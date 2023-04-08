@@ -72,11 +72,11 @@ class Scheduler(Thread):
         self.future_events = future_events
 
     def run(self):
-        if datetime.now() > self.timestamp:
-            logger.warning('Court %d %s, Status: Event not booked' % (self.court, self.timestamp.strftime('%m-%d %H')))
-            return
         self.event_id = self.future_events.add_future_event(self.timestamp, self.court)
         delta = self.timestamp - datetime.now() - timedelta(hours=24)
+        if delta.total_seconds() < 0:
+            logger.warning('Court %d %s, Status: Event not booked' % (self.court, self.timestamp.strftime('%m-%d %H')))
+            return
         sleep_delta = None
         sleeps = [timedelta(days=1), timedelta(hours=8), timedelta(hours=2), timedelta(hours=1),
                   timedelta(minutes=20), timedelta(minutes=5), timedelta(minutes=1)]
@@ -92,7 +92,7 @@ class Scheduler(Thread):
                     sleep_delta = delta % timedelta(minutes=1)
             logger.info('Court %d %s, Delta %s, Sleep %s'
                         % (self.court, self.timestamp.strftime('%Y-%m-%d %H'), delta, sleep_delta))
-            time.sleep(delta.total_seconds())
+            time.sleep(sleep_delta.total_seconds())
             delta = self.timestamp - datetime.now() - timedelta(hours=24)
 
         if self.future_events.is_future_event(self.event_id):
@@ -115,7 +115,7 @@ class Scheduler(Thread):
 
 
 class Request(Thread):
-    def __init__(self, timestamp, court, offset_sec, delay_sec, status, config):
+    def __init__(self, timestamp, court, offset_sec, delay_sec, config):
         Thread.__init__(self)
         self.timestamp = timestamp
         self.court = court
@@ -126,9 +126,12 @@ class Request(Thread):
 
     def run(self):
         delta = self.timestamp - datetime.now() - timedelta(hours=24, seconds=(self.offset_sec - self.delay_sec))
-        logger.info('Court %d %s, Delta %s, Offset: %s, Delay: %s'
-                    % (self.court, self.timestamp.strftime('%Y-%m-%d %H'), delta, self.offset_sec, self.delay_sec))
-        time.sleep(delta.total_seconds())
-        self.error = self.api_client.reserve_court(timestamp=self.timestamp, court=self.court)
-        logger.info('Court %d %s, Offset: %s, Delay: %s, Error: %s'
-                    % (self.court, self.timestamp.strftime('%m-%d %H'), self.offset_sec, self.delay_sec, self.error))
+        if delta.total_seconds() < 0:
+            self.error = 'Negative delta'
+        else:
+            logger.info('Court %d %s, Delta %s, Offset: %s, Delay: %s'
+                        % (self.court, self.timestamp.strftime('%Y-%m-%d %H'), delta, self.offset_sec, self.delay_sec))
+            time.sleep(delta.total_seconds())
+            self.error = self.api_client.reserve_court(timestamp=self.timestamp, court=self.court)
+            logger.info('Court %d %s, Offset: %s, Delay: %s, Error: %s'
+                        % (self.court, self.timestamp.strftime('%m-%d %H'), self.offset_sec, self.delay_sec, self.error))
