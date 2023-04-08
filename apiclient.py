@@ -97,8 +97,7 @@ class ApiClient:
         return response_dict['data']
 
     def reserve_court(self, timestamp, court):
-        date_str = timestamp.strftime('%Y-%m-%d')
-        self.logger.info('Reserve court %d: %s' % (court, date_str))
+        self.logger.info('Reserve court %d: %s' % (court, timestamp.strftime('%Y-%m-%d %H')))
         self._check_credentials()
         booking_end = timestamp + timedelta(hours=1)
         request_dict = {'dtInicioReserva': timestamp.strftime('%Y-%m-%dT%H:%M:%S'),

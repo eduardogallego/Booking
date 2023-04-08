@@ -77,53 +77,41 @@ class Scheduler(Thread):
             return
         self.event_id = self.future_events.add_future_event(self.timestamp, self.court)
         delta = self.timestamp - datetime.now() - timedelta(hours=24)
-        logger.info('Court %d %s, Delta: %s' % (self.court, self.timestamp.strftime('%m-%d %H'), delta))
-        while self.future_events.is_future_event(self.event_id) and delta > timedelta(days=1):
-            time.sleep((delta % timedelta(days=1)).total_seconds())
+        sleep_delta = None
+        sleeps = [timedelta(days=1), timedelta(hours=8), timedelta(hours=2), timedelta(hours=1),
+                  timedelta(minutes=20), timedelta(minutes=5), timedelta(minutes=1)]
+        while self.future_events.is_future_event(self.event_id) and delta >= timedelta(minutes=2):
+            if sleep_delta:  # second and forth sleeps
+                for sleep_delta in sleeps:
+                    if delta > sleep_delta + timedelta(minutes=1):
+                        break
+            else:  # first sleep
+                if delta > timedelta(hours=1, minutes=1):
+                    sleep_delta = delta % timedelta(hours=1)
+                else:
+                    sleep_delta = delta % timedelta(minutes=1)
+            logger.info('Court %d %s, Delta %s, Sleep %s'
+                        % (self.court, self.timestamp.strftime('%Y-%m-%d %H'), delta, sleep_delta))
+            time.sleep(delta.total_seconds())
             delta = self.timestamp - datetime.now() - timedelta(hours=24)
-            logger.info('Court %d %s, Delta: %s' % (self.court, self.timestamp.strftime('%m-%d %H'), delta))
-        while self.future_events.is_future_event(self.event_id) and delta > timedelta(hours=1):
-            time.sleep((delta % timedelta(hours=1)).total_seconds())
-            delta = self.timestamp - datetime.now() - timedelta(hours=24)
-            logger.info('Court %d %s, Delta: %s' % (self.court, self.timestamp.strftime('%m-%d %H'), delta))
-        while self.future_events.is_future_event(self.event_id) and delta > timedelta(minutes=1):
-            time.sleep((delta % timedelta(minutes=1)).total_seconds())
-            delta = self.timestamp - datetime.now() - timedelta(hours=24)
-            logger.info('Court %d %s, Delta: %s' % (self.court, self.timestamp.strftime('%m-%d %H'), delta))
+
         if self.future_events.is_future_event(self.event_id):
             # NTP Correct timestamp = dest_time + offset
             ntp_client = ntplib.NTPClient()
             ntp_response = ntp_client.request(host='europe.pool.ntp.org', version=3)
             # Launch burst of requests
-            status = Status()
-            threads = []
-            for delay_sec in [-0.2, -0.05, 0.05, 0.2, 0.5, 1]:
-                thread = Request(timestamp=self.timestamp, court=self.court, offset_sec=ntp_response.offset,
-                                 delay_sec=delay_sec, status=status, config=self.config)
-                threads.append(thread)
-                thread.start()
-            for thread in threads:
-                thread.join()
-            logger.info('Court %d %s, Status: %s %s'
-                        % (self.court, self.timestamp.strftime('%m-%d %H'), str(status.finished), ', '.join(status.errors)))
-
-
-class Status:
-    def __init__(self):
-        self.finished = False
-        self.errors = []
-        self.lock = Lock()
-
-    def set_error(self, error):
-        with self.lock:
-            if error is None:
-                self.finished = True
-            if error:
-                self.errors.append(error)
-
-    def is_finished(self):
-        with self.lock:
-            return self.finished
+            requests = []
+            for delay_sec in [-0.2, -0.05, 0.05, 0.2, 0.5]:
+                request = Request(timestamp=self.timestamp, court=self.court, offset_sec=ntp_response.offset,
+                                  delay_sec=delay_sec, config=self.config)
+                requests.append(request)
+                request.start()
+            errors = []
+            for request in requests:
+                request.join()
+                errors.append(request.error)
+            logger.info('Court %d %s, Results: %s '
+                        % (self.court, self.timestamp.strftime('%m-%d %H'), ', '.join(errors)))
 
 
 class Request(Thread):
@@ -133,17 +121,14 @@ class Request(Thread):
         self.court = court
         self.offset_sec = offset_sec
         self.delay_sec = delay_sec
-        self.status = status
         self.api_client = ApiClient(config)
+        self.error = None
 
     def run(self):
-        '''time.sleep((self.timestamp - datetime.now()
-                    - timedelta(hours=24, seconds=(self.offset_sec - self.delay_sec))).total_seconds())'''
-        if self.status.finished:
-            error = 'Scheduler already finished'
-        else:
-            error = self.api_client.reserve_court(timestamp=self.timestamp, court=self.court)
-        self.status.set_error(error)
-        logger.info('Try Court %d %s, Now: %s, Offset: %s, Delay: %s, Error: %s'
-                    % (self.court, self.timestamp.strftime('%m-%d %H'), datetime.now(),
-                       self.offset_sec, self.delay_sec, error))
+        delta = self.timestamp - datetime.now() - timedelta(hours=24, seconds=(self.offset_sec - self.delay_sec))
+        logger.info('Court %d %s, Delta %s, Offset: %s, Delay: %s'
+                    % (self.court, self.timestamp.strftime('%Y-%m-%d %H'), delta, self.offset_sec, self.delay_sec))
+        time.sleep(delta.total_seconds())
+        self.error = self.api_client.reserve_court(timestamp=self.timestamp, court=self.court)
+        logger.info('Court %d %s, Offset: %s, Delay: %s, Error: %s'
+                    % (self.court, self.timestamp.strftime('%m-%d %H'), self.offset_sec, self.delay_sec, self.error))
