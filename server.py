@@ -172,10 +172,10 @@ def booking_action():
     # schedule future events
     if timestamp > now + timedelta(days=1):
         if court is None:
-            Scheduler(timestamp=timestamp, court=1, config=config, future_events=future_events).start()
-            Scheduler(timestamp=timestamp, court=2, config=config, future_events=future_events).start()
+            Scheduler(timestamp=timestamp, court=1, future_events=future_events).start()
+            Scheduler(timestamp=timestamp, court=2, future_events=future_events).start()
         else:
-            Scheduler(timestamp=timestamp, court=court, config=config, future_events=future_events).start()
+            Scheduler(timestamp=timestamp, court=court, future_events=future_events).start()
         return redirect("/calendar/%s" % timestamp.strftime('%Y-%m-%d'))
 
     # book events in range

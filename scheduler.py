@@ -6,26 +6,27 @@ import time
 
 from apiclient import ApiClient
 from datetime import datetime, timedelta
-from threading import Lock, Thread
+from threading import Thread
 from utils import Config
 
 logger = logging.getLogger('scheduler')
+config = Config()
+api_client = ApiClient(config)
 
 
 class FutureEvents:
     def __init__(self):
-        self.config = Config()
-        if os.path.isfile(self.config.get('future_events_file')):
-            with open(self.config.get('future_events_file')) as input_file:
+        if os.path.isfile(config.get('future_events_file')):
+            with open(config.get('future_events_file')) as input_file:
                 self.future_events = json.load(input_file)
         else:
             self.future_events = {}
         for future_event in self.future_events.values():
             timestamp = datetime.strptime(future_event['timestamp'], '%Y-%m-%d %H')
-            Scheduler(timestamp, future_event['court'], self.config, self).start()
+            Scheduler(timestamp, future_event['court'], self).start()
 
     def _update_future_events_file(self):
-        with open(self.config.get('future_events_file'), 'w') as outfile:
+        with open(config.get('future_events_file'), 'w') as outfile:
             json.dump(self.future_events, outfile)
 
     def add_future_event(self, timestamp, court):
@@ -45,7 +46,8 @@ class FutureEvents:
         return {"id": future_event['id'],
                 "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
                 "end": (event_start + timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S'),
-                "title": str(future_event['court']), "color": "#198754"}
+                "title": str(future_event['court']),
+                "color": "#dc3545" if 'error' in future_event else "#198754"}
 
     def get_events(self):
         events = []
@@ -63,12 +65,11 @@ class FutureEvents:
 
 
 class Scheduler(Thread):
-    def __init__(self, timestamp, court, config, future_events):
+    def __init__(self, timestamp, court, future_events):
         Thread.__init__(self)
         self.event_id = 'unknown'
         self.timestamp = timestamp
         self.court = court
-        self.config = config
         self.future_events = future_events
 
     def run(self):
@@ -95,33 +96,45 @@ class Scheduler(Thread):
             time.sleep(sleep_delta.total_seconds())
             delta = self.timestamp - datetime.now() - timedelta(hours=24)
 
-        if self.future_events.is_future_event(self.event_id):
-            # NTP Correct timestamp = dest_time + offset
-            ntp_client = ntplib.NTPClient()
-            ntp_response = ntp_client.request(host='europe.pool.ntp.org', version=3)
-            # Launch burst of requests
-            requests = []
-            for delay_sec in [-0.2, -0.05, 0.05, 0.2, 0.5]:
-                request = Request(timestamp=self.timestamp, court=self.court, offset_sec=ntp_response.offset,
-                                  delay_sec=delay_sec, config=self.config)
-                requests.append(request)
-                request.start()
-            errors = []
-            for request in requests:
-                request.join()
-                errors.append(request.error)
-            logger.info('Court %d %s, Results: %s '
-                        % (self.court, self.timestamp.strftime('%m-%d %H'), ', '.join(errors)))
+        if not self.future_events.is_future_event(self.event_id):
+            return
+
+        # NTP Correct timestamp = dest_time + offset
+        ntp_client = ntplib.NTPClient()
+        ntp_response = ntp_client.request(host='europe.pool.ntp.org', version=3)
+        # Launch burst of requests
+        requests = []
+        for delay_sec in [-0.2, -0.05, 0.05, 0.2, 0.5]:
+            request = Request(timestamp=self.timestamp, court=self.court,
+                              offset_sec=ntp_response.offset, delay_sec=delay_sec)
+            requests.append(request)
+            request.start()
+        for request in requests:
+            request.join()
+
+        # check reservations
+        time.sleep(1)
+        reservations = []
+        for reservation in api_client.get_month_reservations(self.timestamp.strftime('%Y-%m-%d')):
+            if self.timestamp == datetime.strptime(reservation['dtFecha'], '%d/%m/%Y %H:%M:%S') \
+                    and str(self.court) in reservation.get['tmTitulo']:
+                reservations.append(reservation)
+        if reservations:
+            self.future_events.delete_event(self.event_id)
+        else:
+            self.future_events[self.event_id]['error'] = 'Error: %s' % requests[-1].error
+        if len(reservations) > 1:
+            for i in range(1, len(reservations)):
+                api_client.delete_reservation(reservations[i]['idEvento'])
 
 
 class Request(Thread):
-    def __init__(self, timestamp, court, offset_sec, delay_sec, config):
+    def __init__(self, timestamp, court, offset_sec, delay_sec):
         Thread.__init__(self)
         self.timestamp = timestamp
         self.court = court
         self.offset_sec = offset_sec
         self.delay_sec = delay_sec
-        self.api_client = ApiClient(config)
         self.error = None
 
     def run(self):
@@ -132,6 +145,6 @@ class Request(Thread):
             logger.info('Court %d %s, Delta %s, Offset: %s, Delay: %s'
                         % (self.court, self.timestamp.strftime('%Y-%m-%d %H'), delta, self.offset_sec, self.delay_sec))
             time.sleep(delta.total_seconds())
-            self.error = self.api_client.reserve_court(timestamp=self.timestamp, court=self.court)
-            logger.info('Court %d %s, Offset: %s, Delay: %s, Error: %s'
-                        % (self.court, self.timestamp.strftime('%m-%d %H'), self.offset_sec, self.delay_sec, self.error))
+            self.error = api_client.reserve_court(timestamp=self.timestamp, court=self.court)
+        logger.info('Court %d %s, Offset: %s, Delay: %s, Error: %s'
+                    % (self.court, self.timestamp.strftime('%m-%d %H'), self.offset_sec, self.delay_sec, self.error))
