@@ -79,7 +79,7 @@ class Scheduler(Thread):
             logger.warning('Court %d %s, Status: Event not booked' % (self.court, self.timestamp.strftime('%m-%d %H')))
             return
         sleep_delta = None
-        sleeps = [timedelta(days=1), timedelta(hours=8), timedelta(hours=2), timedelta(hours=1),
+        sleeps = [timedelta(days=1), timedelta(hours=8), timedelta(hours=4), timedelta(hours=1),
                   timedelta(minutes=20), timedelta(minutes=5), timedelta(minutes=1)]
         while self.future_events.is_future_event(self.event_id) and delta >= timedelta(minutes=2):
             if sleep_delta:  # second and forth sleeps
