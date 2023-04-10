@@ -47,7 +47,7 @@ class ApiClient:
             json.dump({'token': self.token, 'token_expiration_date': self.token_expiration_date}, outfile)
         return True
 
-    def _check_credentials(self):
+    def check_credentials(self):
         if not self.token or time.time() > self.token_expiration_date:
             while not self.login():
                 time.sleep(1)
@@ -55,7 +55,7 @@ class ApiClient:
     def get_courts_status(self, date):
         date_str = date.strftime('%Y-%m-%d')
         self.logger.info('Get courts status %s' % date_str)
-        self._check_credentials()
+        self.check_credentials()
         request_dict = {'dtReserva': date_str}
         court_dict = {}
         for court_id in [1, 2]:
@@ -81,7 +81,7 @@ class ApiClient:
     def get_month_reservations(self, date):
         date_str = date.strftime('%Y-%m-%d')
         self.logger.info('Get month reservations: %s' % date_str)
-        self._check_credentials()
+        self.check_credentials()
         ini_day = date.replace(day=1)
         end_day = date.replace(day=monthrange(ini_day.year, ini_day.month)[1])
         request_dict = {"pagination": {"page": 1, "size": 0, "count": 100},
@@ -98,7 +98,7 @@ class ApiClient:
 
     def reserve_court(self, timestamp, court):
         self.logger.info('Reserve court %d: %s' % (court, timestamp.strftime('%Y-%m-%d %H')))
-        self._check_credentials()
+        self.check_credentials()
         booking_end = timestamp + timedelta(hours=1)
         request_dict = {'dtInicioReserva': timestamp.strftime('%Y-%m-%dT%H:%M:%S'),
                         'dtFinReserva': booking_end.strftime('%Y-%m-%dT%H:%M:%S'),
@@ -118,7 +118,7 @@ class ApiClient:
 
     def delete_reservation(self, booking_id):
         self.logger.info('Delete reservation %s' % booking_id)
-        self._check_credentials()
+        self.check_credentials()
         url = '%s/%s' % (self.config.get('court_booking_url'), booking_id)
         response = requests.delete(url, headers=self.headers)
         if response.status_code != 200:

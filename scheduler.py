@@ -1,7 +1,5 @@
-import json
 import logging
 import ntplib
-import os
 import time
 
 from apiclient import ApiClient
@@ -14,74 +12,27 @@ config = Config()
 api_client = ApiClient(config)
 
 
-class FutureEvents:
-    def __init__(self):
-        if os.path.isfile(config.get('future_events_file')):
-            with open(config.get('future_events_file')) as input_file:
-                self.future_events = json.load(input_file)
-        else:
-            self.future_events = {}
-        for future_event in self.future_events.values():
-            timestamp = datetime.strptime(future_event['timestamp'], '%Y-%m-%d %H')
-            Scheduler(timestamp, future_event['court'], self).start()
-
-    def _update_future_events_file(self):
-        with open(config.get('future_events_file'), 'w') as outfile:
-            json.dump(self.future_events, outfile)
-
-    def add_future_event(self, timestamp, court):
-        event_id = '%s_%d' % (timestamp.strftime('fut_%Y-%m-%dT%H:%M:%S'), court)
-        self.future_events[event_id] = {"id": event_id, "timestamp": timestamp.strftime('%Y-%m-%d %H'), "court": court}
-        self._update_future_events_file()
-        return event_id
-
-    def delete_event(self, event_id):
-        self.future_events.pop(event_id)
-        self._update_future_events_file()
-
-    def get_event(self, event_id):
-        future_event = self.future_events.get(event_id)
-        timestamp = datetime.strptime(future_event['timestamp'], '%Y-%m-%d %H')
-        event_start = timestamp if future_event['court'] == 1 else timestamp + timedelta(minutes=30)
-        return {"id": future_event['id'],
-                "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
-                "end": (event_start + timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S'),
-                "title": str(future_event['court']),
-                "color": "#dc3545" if 'error' in future_event else "#198754"}
-
-    def get_events(self):
-        events = []
-        for future_event in self.future_events.values():
-            timestamp = datetime.strptime(future_event['timestamp'], '%Y-%m-%d %H')
-            event_start = timestamp if future_event['court'] == 1 else timestamp + timedelta(minutes=30)
-            events.append({"id": future_event['id'],
-                           "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
-                           "end": (event_start + timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S'),
-                           "title": str(future_event['court']), "color": "#198754"})
-        return events
-
-    def is_future_event(self, event_id):
-        return event_id in self.future_events
-
-
 class Scheduler(Thread):
-    def __init__(self, timestamp, court, future_events):
+    def __init__(self, timestamp, court, cache):
         Thread.__init__(self)
         self.event_id = 'unknown'
         self.timestamp = timestamp
         self.court = court
-        self.future_events = future_events
+        self.cache = cache
 
     def run(self):
-        self.event_id = self.future_events.add_future_event(self.timestamp, self.court)
+        self.event_id = self.cache.add_scheduled_event(self.timestamp, self.court)
         delta = self.timestamp - datetime.now() - timedelta(hours=24)
         if delta.total_seconds() < 0:
-            logger.warning('Court %d %s, Status: Event not booked' % (self.court, self.timestamp.strftime('%m-%d %H')))
+            error = "Timestamp in the past. Event not booked."
+            logger.warning('Court %d %s, Error: %s'
+                           % (self.court, self.timestamp.strftime('%m-%d %H'), error))
+            self.cache.set_scheduled_event_error(self.event_id, error)
             return
         sleep_delta = None
         sleeps = [timedelta(days=1), timedelta(hours=8), timedelta(hours=4), timedelta(hours=1),
                   timedelta(minutes=20), timedelta(minutes=5), timedelta(minutes=1)]
-        while self.future_events.is_future_event(self.event_id) and delta >= timedelta(minutes=2):
+        while self.cache.is_scheduled_event(self.event_id) and delta >= timedelta(minutes=2):
             if sleep_delta:  # second and forth sleeps
                 for sleep_delta in sleeps:
                     if delta > sleep_delta + timedelta(minutes=1):
@@ -96,12 +47,16 @@ class Scheduler(Thread):
             time.sleep(sleep_delta.total_seconds())
             delta = self.timestamp - datetime.now() - timedelta(hours=24)
 
-        if not self.future_events.is_future_event(self.event_id):
+        if not self.cache.is_scheduled_event(self.event_id):
             return
+
+        # Verify credentials
+        api_client.check_credentials()
 
         # NTP Correct timestamp = dest_time + offset
         ntp_client = ntplib.NTPClient()
         ntp_response = ntp_client.request(host='europe.pool.ntp.org', version=3)
+
         # Launch burst of requests
         requests = []
         for delay_sec in [-0.2, -0.05, 0.05, 0.2, 0.5]:
@@ -115,14 +70,14 @@ class Scheduler(Thread):
         # check reservations
         time.sleep(1)
         reservations = []
-        for reservation in api_client.get_month_reservations(self.timestamp.strftime('%Y-%m-%d')):
+        for reservation in api_client.get_month_reservations(self.timestamp):
             if self.timestamp == datetime.strptime(reservation['dtFecha'], '%d/%m/%Y %H:%M:%S') \
                     and str(self.court) in reservation.get['tmTitulo']:
                 reservations.append(reservation)
         if reservations:
-            self.future_events.delete_event(self.event_id)
+            self.cache.delete_scheduled_event(self.event_id)
         else:
-            self.future_events[self.event_id]['error'] = 'Error: %s' % requests[-1].error
+            self.cache.set_scheduled_event_error(self.event_id, requests[-1].error)
         if len(reservations) > 1:
             for i in range(1, len(reservations)):
                 api_client.delete_reservation(reservations[i]['idEvento'])
