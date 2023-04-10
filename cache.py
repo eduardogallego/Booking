@@ -76,6 +76,7 @@ class Cache:
                 "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
                 "end": (event_start + timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S'),
                 "title": str(scheduled_event['court']),
+                "error": scheduled_event['error'],
                 "color": "#dc3545" if 'error' in scheduled_event else "#198754"}
 
     def get_scheduled_events(self):
