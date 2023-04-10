@@ -22,13 +22,26 @@ class Scheduler(Thread):
 
     def run(self):
         self.event_id = self.cache.add_scheduled_event(self.timestamp, self.court)
-        delta = self.timestamp - datetime.now() - timedelta(hours=24)
+        now = datetime.now()
+        delta = self.timestamp - now - timedelta(hours=24)
         if delta.total_seconds() < 0:
-            error = "Timestamp in the past. Event not booked."
-            logger.warning('Court %d %s, Error: %s'
-                           % (self.court, self.timestamp.strftime('%m-%d %H'), error))
-            self.cache.set_scheduled_event_error(self.event_id, error)
-            return
+            if now < self.timestamp:  # still in range
+                error = api_client.reserve_court(timestamp=self.timestamp, court=self.court)
+                if error:
+                    logger.error('Court %d %s, Error: %s'
+                                 % (self.court, self.timestamp.strftime('%m-%d %H'), error))
+                    self.cache.set_scheduled_event_error(self.event_id, error)
+                    # TODO ignore scheduled_events with error
+                else:
+                    # TODO refresh events and delete scheduled_events entry
+                    pass
+                return
+            else:  # event in the past
+                error = "Timestamp in the past. Event not booked."
+                logger.error('Court %d %s, Error: %s'
+                               % (self.court, self.timestamp.strftime('%m-%d %H'), error))
+                self.cache.set_scheduled_event_error(self.event_id, error)
+                return
         sleep_delta = None
         sleeps = [timedelta(days=1), timedelta(hours=8), timedelta(hours=4), timedelta(hours=1),
                   timedelta(minutes=20), timedelta(minutes=5), timedelta(minutes=1)]

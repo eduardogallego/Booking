@@ -201,9 +201,10 @@ def booking_action():
 def delete_form(event_id):
     event = cache.get_scheduled_event(event_id) if event_id.startswith('fut_') else events_cache[event_id]
     timestamp = datetime.strptime(event['start'], '%Y-%m-%dT%H:%M:%S').replace(minute=0)
+    error = event.get('error', None)
     court = 'Court 1' if event['title'] == '1' else 'Court 2'
     return render_template("delete_form.html", booking_date=timestamp.strftime('%Y-%m-%d'),
-                           booking_time=timestamp.strftime('%H:%M'), court=court, id=event_id, error=None)
+                           booking_time=timestamp.strftime('%H:%M'), court=court, id=event_id, error=error)
 
 
 @app.route('/delete_action', methods=['POST'])

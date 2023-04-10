@@ -1,7 +1,7 @@
 /.idea/
-/workingdir/
 /config.json
 /credentials.json
+/padel_courts.log
 /scheduled_events.json
 /test.py
-/booking.log
+/workingdir/
