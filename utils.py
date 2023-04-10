@@ -15,7 +15,7 @@ class Config:
 
 class Logger:
     def __init__(self):
-        handler = logging.handlers.WatchedFileHandler('booking.log')
+        handler = logging.handlers.WatchedFileHandler('padel_courts.log')
         handler.setFormatter(logging.Formatter(
             fmt="%(asctime)s.%(msecs)03d - %(levelname)s [%(threadName)s]- %(name)s: %(message)s",
             datefmt="%d/%b/%Y %H:%M:%S"))
