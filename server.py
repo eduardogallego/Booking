@@ -231,4 +231,5 @@ def get_image(image):
     return send_from_directory(os.path.join(app.root_path, 'images'), image)
 
 
-app.run(host='0.0.0.0', port=config.get('port'), debug=True)
+debug_mode = config.get('debug_mode') == 'True'
+app.run(host='0.0.0.0', port=config.get('port'), debug=debug_mode)
