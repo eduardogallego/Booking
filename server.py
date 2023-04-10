@@ -22,7 +22,6 @@ login_manager.init_app(app)
 login_manager.login_view = "/login"
 user = User(config.get('user_id'), config.get('user_name'), config.get('user_password'))
 status_cache = {}
-reservations_cache = {}
 events_cache = {}
 cache = Cache()
 
@@ -119,9 +118,8 @@ def events():
         request_months.append(end_month)
     for month_date in request_months:
         reservations = []
-        reservations_month = month_date.strftime('%Y-%m')
-        if reservations_month in reservations_cache:
-            result += reservations_cache.get(reservations_month)
+        if cache.is_reservations_in_cache(month_date):
+            result += cache.get_reservations(month_date)
         else:
             for reservation in api_client.get_month_reservations(month_date):
                 event_start = datetime.strptime(reservation['dtFecha'], '%d/%m/%Y %H:%M:%S')
@@ -137,7 +135,7 @@ def events():
                     "title": title}
                 reservations.append(event)
                 events_cache[event['id']] = event
-            reservations_cache[reservations_month] = reservations
+            cache.add_reservations(month_date, reservations)
             result += reservations
     # future events
     result += cache.get_scheduled_events()
@@ -192,7 +190,7 @@ def booking_action():
                     return render_template("booking_form.html", booking_date=form_date,
                                            booking_time=form_time, court=form_court, error=error)
                 else:
-                    reservations_cache.pop(timestamp.strftime('%Y-%m'), None)
+                    cache.delete_reservations(timestamp)
     return redirect("/calendar/%s" % timestamp.strftime('%Y-%m-%d'))
 
 
@@ -220,7 +218,7 @@ def delete_action():
                                    court=request.form['court'], id=request.form['id'], error=error)
         else:
             timestamp = datetime.strptime(request.form['booking_date'], '%Y-%m-%d')
-            reservations_cache.pop(timestamp.strftime('%Y-%m'))
+            cache.delete_reservations(timestamp)
     return redirect("/calendar/%s" % request.form['booking_date'])
 
 

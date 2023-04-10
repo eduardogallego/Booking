@@ -18,10 +18,15 @@ class Cache:
             court: 1|2
         timestamp = %Y-%m-%d %H
         court = 1|2
+        [error] = error
 
     dict: self.reservations
-        key =
-        value =
+        key = month_id
+        value = {"idEvento", "dtFecha", "tmTitulo", ...}
+        month_id = %Y-%m
+        idEvento = int
+        dtFecha = %d/%m/%Y %H:%M:%S
+        tmTitulo = 'PISTA DE PÁDEL Nº<1|2>'
     """
 
     def __init__(self):
@@ -32,12 +37,17 @@ class Cache:
         else:
             self.scheduled_events = {}
         for scheduled_event in self.scheduled_events.values():
-            timestamp = datetime.strptime(scheduled_event['timestamp'], '%Y-%m-%d %H')
-            Scheduler(timestamp, scheduled_event['court'], self).start()
+            if not scheduled_event.get('error'):
+                timestamp = datetime.strptime(scheduled_event['timestamp'], '%Y-%m-%d %H')
+                Scheduler(timestamp, scheduled_event['court'], self).start()
 
     def _update_scheduled_events_file(self):
         with open(config.get('scheduled_events_file'), 'w') as outfile:
             json.dump(self.scheduled_events, outfile)
+
+    def add_reservations(self, date, reservations):
+        month_id = date.strftime('%Y-%m')
+        self.reservations[month_id] = reservations
 
     def add_scheduled_event(self, timestamp, court):
         event_id = '%s_%d' % (timestamp.strftime('fut_%Y-%m-%dT%H:%M:%S'), court)
@@ -46,9 +56,17 @@ class Cache:
         self._update_scheduled_events_file()
         return event_id
 
+    def delete_reservations(self, date):
+        month_id = date.strftime('%Y-%m')
+        self.reservations.pop(month_id, None)
+
     def delete_scheduled_event(self, event_id):
         self.scheduled_events.pop(event_id)
         self._update_scheduled_events_file()
+
+    def get_reservations(self, date):
+        month_id = date.strftime('%Y-%m')
+        return self.reservations.get(month_id, [])
 
     def get_scheduled_event(self, event_id):
         scheduled_event = self.scheduled_events.get(event_id)
@@ -71,6 +89,10 @@ class Cache:
                            "title": str(scheduled_event['court']),
                            "color": "#dc3545" if 'error' in scheduled_event else "#198754"})
         return events
+
+    def is_reservations_in_cache(self, date):
+        month_id = date.strftime('%Y-%m')
+        return month_id in self.reservations
 
     def is_scheduled_event(self, event_id):
         return event_id in self.scheduled_events

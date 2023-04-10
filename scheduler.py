@@ -31,15 +31,14 @@ class Scheduler(Thread):
                     logger.error('Court %d %s, Error: %s'
                                  % (self.court, self.timestamp.strftime('%m-%d %H'), error))
                     self.cache.set_scheduled_event_error(self.event_id, error)
-                    # TODO ignore scheduled_events with error
                 else:
-                    # TODO refresh events and delete scheduled_events entry
-                    pass
+                    self.cache.delete_scheduled_event(self.event_id)
+                    self.cache.delete_reservations(self.timestamp)
                 return
             else:  # event in the past
                 error = "Timestamp in the past. Event not booked."
                 logger.error('Court %d %s, Error: %s'
-                               % (self.court, self.timestamp.strftime('%m-%d %H'), error))
+                             % (self.court, self.timestamp.strftime('%m-%d %H'), error))
                 self.cache.set_scheduled_event_error(self.event_id, error)
                 return
         sleep_delta = None
@@ -72,7 +71,7 @@ class Scheduler(Thread):
 
         # Launch burst of requests
         requests = []
-        for delay_sec in [-0.2, -0.05, 0.05, 0.2, 0.5]:
+        for delay_sec in [-0.25, -0.05, 0.05, 0.25]:
             request = Request(timestamp=self.timestamp, court=self.court,
                               offset_sec=ntp_response.offset, delay_sec=delay_sec)
             requests.append(request)
@@ -89,6 +88,7 @@ class Scheduler(Thread):
                 reservations.append(reservation)
         if reservations:
             self.cache.delete_scheduled_event(self.event_id)
+            self.cache.delete_reservations(self.timestamp)
         else:
             self.cache.set_scheduled_event_error(self.event_id, requests[-1].error)
         if len(reservations) > 1:
