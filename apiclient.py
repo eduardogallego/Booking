@@ -31,13 +31,14 @@ class ApiClient:
         }
 
     def login(self):
+        ini_tt = time.time() * 1000
         user = self.config.get('user_name')
-        self.logger.info('Login %s' % user)
         requests_dict = {"Password": self.config.get('user_password'),
                          "User": user, "LoginType": "3", "Invitations": True}
         response = requests.post('https://api.iesa.es/tcsecurity/api/v1/login', json=requests_dict)
         if response.status_code != 200:
-            self.logger.error('Error %d - %s' % (response.status_code, response.reason))
+            delta = (time.time() * 1000) - ini_tt
+            self.logger.error('Login error (%d ms) %d - %s' % (delta, response.status_code, response.reason))
             return False
         response_dict = json.loads(response.text)
         self.token = response_dict['Token']
@@ -45,6 +46,8 @@ class ApiClient:
         self.headers['Authorization'] = self.token
         with open(self.config.get('credentials_file'), 'w') as outfile:
             json.dump({'token': self.token, 'token_expiration_date': self.token_expiration_date}, outfile)
+        delta = (time.time() * 1000) - ini_tt
+        self.logger.info('Login (%d ms) %s' % (delta, user))
         return True
 
     def check_credentials(self):
@@ -53,9 +56,9 @@ class ApiClient:
                 time.sleep(1)
 
     def get_courts_status(self, date):
-        date_str = date.strftime('%Y-%m-%d')
-        self.logger.info('Get courts status %s' % date_str)
+        ini_tt = time.time() * 1000
         self.check_credentials()
+        date_str = date.strftime('%Y-%m-%d')
         request_dict = {'dtReserva': date_str}
         court_dict = {}
         for court_id in [1, 2]:
@@ -63,7 +66,9 @@ class ApiClient:
                 self.config.get('court1_id') if court_id == 1 else self.config.get('court2_id')
             response = requests.post(self.config.get('court_status_url'), json=request_dict, headers=self.headers)
             if response.status_code != 200:
-                self.logger.error('Error court_status %s: %d - %s' % (date_str, response.status_code, response.reason))
+                delta = (time.time() * 1000) - ini_tt
+                self.logger.error('Get courts error (%d ms) %s: %d - %s'
+                                  % (delta, date_str, response.status_code, response.reason))
                 return None
             court_dict[court_id] = json.loads(response.text.encode().decode('utf-8-sig'))
         status_dict = {}
@@ -75,13 +80,16 @@ class ApiClient:
                 block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')
                 status_dict[block.strftime('%H')]['court2'] = data['avalaibleCapacity']
         else:
-            self.logger.error("Error court_status %s: court_dict len %d" % (date_str, len(court_dict)))
+            delta = (time.time() * 1000) - ini_tt
+            self.logger.error("Get courts error (%d ms) %s: court_dict len %d" % (delta, date_str, len(court_dict)))
+        delta = (time.time() * 1000) - ini_tt
+        self.logger.info('Get courts (%d ms) status %s' % (delta, date_str))
         return status_dict
 
     def get_month_reservations(self, date):
-        date_str = date.strftime('%Y-%m-%d')
-        self.logger.info('Get month reservations: %s' % date_str)
+        ini_tt = time.time() * 1000
         self.check_credentials()
+        date_str = date.strftime('%Y-%m-%d')
         ini_day = date.replace(day=1)
         end_day = date.replace(day=monthrange(ini_day.year, ini_day.month)[1])
         request_dict = {"pagination": {"page": 1, "size": 0, "count": 100},
@@ -91,13 +99,17 @@ class ApiClient:
                         "fechaDiaActual": "", "tmTitulo": "", "lstIdTipoEvento": []}
         response = requests.post(self.config.get('reservations_url'), json=request_dict, headers=self.headers)
         if response.status_code != 200:
-            self.logger.error('Error %d - %s' % (response.status_code, response.reason))
+            delta = (time.time() * 1000) - ini_tt
+            self.logger.error('Get month reservations error (%d ms) %d - %s'
+                              % (delta, response.status_code, response.reason))
             return None
         response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
+        delta = (time.time() * 1000) - ini_tt
+        self.logger.info('Get month reservations (%d ms) %s' % (delta, date_str))
         return response_dict['data']
 
     def reserve_court(self, timestamp, court):
-        self.logger.info('Reserve court %d: %s' % (court, timestamp.strftime('%Y-%m-%d %H')))
+        ini_tt = time.time() * 1000
         self.check_credentials()
         booking_end = timestamp + timedelta(hours=1)
         request_dict = {'dtInicioReserva': timestamp.strftime('%Y-%m-%dT%H:%M:%S'),
@@ -108,24 +120,35 @@ class ApiClient:
                         'idElementoComun': self.config.get('court1_id') if court == 1 else self.config.get('court2_id')}
         response = requests.post(self.config.get('court_booking_url'), json=request_dict, headers=self.headers)
         if response.status_code != 200:
-            self.logger.error('Error %d - %s' % (response.status_code, response.reason))
+            delta = (time.time() * 1000) - ini_tt
+            self.logger.error('Reserve court error (%d ms) %d - %s' % (delta, response.status_code, response.reason))
             return response.reason
         response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
         if response_dict['code'] == 4:
-            self.logger.error('Error %d - %s' % (response_dict['code'], response_dict['message']))
+            delta = (time.time() * 1000) - ini_tt
+            self.logger.error('Reserve court error (%d ms) %d - %s'
+                              % (delta, response_dict['code'], response_dict['message']))
             return response_dict['message']
+        delta = (time.time() * 1000) - ini_tt
+        self.logger.info('Reserve court (%d ms) %d: %s' % (delta, court, timestamp.strftime('%Y-%m-%d %H')))
         return None
 
     def delete_reservation(self, booking_id):
-        self.logger.info('Delete reservation %s' % booking_id)
+        ini_tt = time.time() * 1000
         self.check_credentials()
         url = '%s/%s' % (self.config.get('court_booking_url'), booking_id)
         response = requests.delete(url, headers=self.headers)
         if response.status_code != 200:
-            self.logger.error('Error %d - %s' % (response.status_code, response.reason))
+            delta = (time.time() * 1000) - ini_tt
+            self.logger.error('Delete reservation error (%d ms) %d - %s'
+                              % (delta, response.status_code, response.reason))
             return response.reason
         response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
         if response_dict['code'] == 4:
-            self.logger.error('Error %d - %s' % (response_dict['code'], response_dict['message']))
+            delta = (time.time() * 1000) - ini_tt
+            self.logger.error('Delete reservation error (%d ms) %d - %s'
+                              % (delta, response_dict['code'], response_dict['message']))
             return response_dict['message']
+        delta = (time.time() * 1000) - ini_tt
+        self.logger.info('Delete reservation (%d ms) %s' % (delta, booking_id))
         return None
