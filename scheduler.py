@@ -84,7 +84,7 @@ class Scheduler(Thread):
         reservations = []
         for reservation in api_client.get_month_reservations(self.timestamp):
             if self.timestamp == datetime.strptime(reservation['dtFecha'], '%d/%m/%Y %H:%M:%S') \
-                    and str(self.court) in reservation.get['tmTitulo']:
+                    and str(self.court) in reservation['tmTitulo']:
                 reservations.append(reservation)
         if reservations:
             self.cache.delete_scheduled_event(self.event_id)
