@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from cache import Cache
 from flask import Flask, redirect, render_template, request, send_from_directory
 from flask_login import LoginManager, login_required, login_user
+from threading import Thread
 from scheduler import Scheduler
 from utils import Config, Logger, User
 from werkzeug import serving
@@ -65,6 +66,17 @@ def calendar(booking_date):
     return render_template("calendar.html", date=booking_date)
 
 
+class CourtStatus(Thread):
+    def __init__(self, court, request_date):
+        Thread.__init__(self)
+        self.court = court
+        self.request_date = request_date
+        self.court_status = None
+
+    def run(self):
+        self.court_status = api_client.get_court_status(self.court, self.request_date)
+
+
 @app.route('/events', methods=['GET'])
 @login_required
 def events():
@@ -76,6 +88,7 @@ def events():
     request_date = start_date
     result = []
     # court status
+    court_status_threads = []
     now = datetime.now()
     while request_date < end_date:
         if request_date.replace(hour=10) > now + timedelta(days=1):
@@ -85,31 +98,41 @@ def events():
             result += status_cache.get(request_date_str)
             request_date += timedelta(days=1)
             continue
-        booked_events = []
-        for court in [1, 2]:
-            court_status = api_client.get_court_status(court, request_date)
-            if court_status is None:
-                logger.warning("Court Status %s == None" % request_date.strftime('%Y-%m-%d'))
-                continue
-            for hour, available in court_status.items():
-                if available == '0':
-                    if court == 1:
-                        event_start = request_date.replace(hour=int(hour))
-                        event_end = request_date.replace(hour=int(hour), minute=30)
-                        title = '1'
-                    else:   # court2
-                        event_start = request_date.replace(hour=int(hour), minute=30)
-                        event_end = request_date.replace(hour=int(hour) + 1,)
-                        title = '2'
-                    booked_events.append({
-                        "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
-                        "end": event_end.strftime('%Y-%m-%dT%H:%M:%S'),
-                        "title": title,
-                        "display": "background", "color": "#ff9f89"})
-        if now > request_date.replace(hour=22):
-            status_cache[request_date_str] = booked_events
-        result += booked_events
+        court_1_thread = CourtStatus(1, request_date)
+        court_1_thread.start()
+        court_status_threads.append(court_1_thread)
+        court_2_thread = CourtStatus(2, request_date)
+        court_2_thread.start()
+        court_status_threads.append(court_2_thread)
         request_date += timedelta(days=1)
+    for court_status_thread in court_status_threads:
+        court_status_thread.join()
+        if court_status_thread.court_status is None:
+            logger.warning("Court Status %s == None" % court_status_thread.request_date.strftime('%Y-%m-%d'))
+            continue
+        booked_events = []
+        for hour, available in court_status_thread.court_status.items():
+            if available == '0':
+                if court_status_thread.court == 1:
+                    event_start = court_status_thread.request_date.replace(hour=int(hour))
+                    event_end = court_status_thread.request_date.replace(hour=int(hour), minute=30)
+                    title = '1'
+                else:  # court2
+                    event_start = court_status_thread.request_date.replace(hour=int(hour), minute=30)
+                    event_end = court_status_thread.request_date.replace(hour=int(hour) + 1)
+                    title = '2'
+                booked_events.append({
+                    "start": event_start.strftime('%Y-%m-%dT%H:%M:%S'),
+                    "end": event_end.strftime('%Y-%m-%dT%H:%M:%S'),
+                    "title": title,
+                    "display": "background", "color": "#ff9f89"})
+        if now > court_status_thread.request_date.replace(hour=22):
+            request_date_str = court_status_thread.request_date.strftime('%Y-%m-%d')
+            if request_date_str in status_cache:
+                status_cache[request_date_str] += booked_events
+            else:
+                status_cache[request_date_str] = booked_events
+        result += booked_events
     # registered events
     start_month = start_date.replace(day=1)
     request_months = [start_month]

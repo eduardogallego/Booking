@@ -45,7 +45,7 @@ class Scheduler(Thread):
         sleeps = [timedelta(days=1), timedelta(hours=8), timedelta(hours=4), timedelta(hours=1),
                   timedelta(minutes=20), timedelta(minutes=5), timedelta(minutes=1)]
         while self.cache.is_scheduled_event(self.event_id) and delta >= timedelta(minutes=2):
-            if sleep_delta:  # second and forth sleeps
+            if sleep_delta:  # second and subsequent sleeps
                 for sleep_delta in sleeps:
                     if delta > sleep_delta + timedelta(minutes=1):
                         break
@@ -71,7 +71,7 @@ class Scheduler(Thread):
 
         # Launch burst of requests
         requests = []
-        for delay_sec in [-0.25, -0.05, 0.05, 0.25]:
+        for delay_sec in [-0.35, -0.15, 0.05]:
             request = Request(timestamp=self.timestamp, court=self.court,
                               offset_sec=ntp_response.offset, delay_sec=delay_sec)
             requests.append(request)
