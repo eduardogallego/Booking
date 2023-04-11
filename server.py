@@ -86,14 +86,14 @@ def events():
             request_date += timedelta(days=1)
             continue
         booked_events = []
-        court_status = api_client.get_courts_status(request_date)
-        if court_status is None:
-            logger.warning("Court Status %s == None" % request_date.strftime('%Y-%m-%d'))
-            continue
-        for hour, available in court_status.items():
-            for court in ['court1', 'court2']:
-                if available[court] == '0':
-                    if court == 'court1':
+        for court in [1, 2]:
+            court_status = api_client.get_court_status(court, request_date)
+            if court_status is None:
+                logger.warning("Court Status %s == None" % request_date.strftime('%Y-%m-%d'))
+                continue
+            for hour, available in court_status.items():
+                if available == '0':
+                    if court == 1:
                         event_start = request_date.replace(hour=int(hour))
                         event_end = request_date.replace(hour=int(hour), minute=30)
                         title = '1'

@@ -38,7 +38,7 @@ class ApiClient:
         response = requests.post('https://api.iesa.es/tcsecurity/api/v1/login', json=requests_dict)
         if response.status_code != 200:
             delta = (time.time() * 1000) - ini_tt
-            self.logger.error('Login error (%d ms) %d - %s' % (delta, response.status_code, response.reason))
+            self.logger.error('Login %s error (%d ms) %d - %s' % (user, delta, response.status_code, response.reason))
             return False
         response_dict = json.loads(response.text)
         self.token = response_dict['Token']
@@ -47,7 +47,7 @@ class ApiClient:
         with open(self.config.get('credentials_file'), 'w') as outfile:
             json.dump({'token': self.token, 'token_expiration_date': self.token_expiration_date}, outfile)
         delta = (time.time() * 1000) - ini_tt
-        self.logger.info('Login (%d ms) %s' % (delta, user))
+        self.logger.info('Login %s (%d ms)' % (user, delta))
         return True
 
     def check_credentials(self):
@@ -55,35 +55,25 @@ class ApiClient:
             while not self.login():
                 time.sleep(1)
 
-    def get_courts_status(self, date):
+    def get_court_status(self, court, date):
         ini_tt = time.time() * 1000
         self.check_credentials()
         date_str = date.strftime('%Y-%m-%d')
-        request_dict = {'dtReserva': date_str}
-        court_dict = {}
-        for court_id in [1, 2]:
-            request_dict['idElementoComun'] = \
-                self.config.get('court1_id') if court_id == 1 else self.config.get('court2_id')
-            response = requests.post(self.config.get('court_status_url'), json=request_dict, headers=self.headers)
-            if response.status_code != 200:
-                delta = (time.time() * 1000) - ini_tt
-                self.logger.error('Get courts error (%d ms) %s: %d - %s'
-                                  % (delta, date_str, response.status_code, response.reason))
-                return None
-            court_dict[court_id] = json.loads(response.text.encode().decode('utf-8-sig'))
-        status_dict = {}
-        if len(court_dict) == 2:
-            for data in court_dict[1]['data']:
-                block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')  # 25/03/2023 10:00:00
-                status_dict[block.strftime('%H')] = {'court1': data['avalaibleCapacity']}
-            for data in court_dict[2]['data']:
-                block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')
-                status_dict[block.strftime('%H')]['court2'] = data['avalaibleCapacity']
-        else:
+        request_dict = {'dtReserva': date_str,
+                        'idElementoComun': self.config.get('court1_id') if court == 1 else self.config.get('court2_id')}
+        response = requests.post(self.config.get('court_status_url'), json=request_dict, headers=self.headers)
+        if response.status_code != 200:
             delta = (time.time() * 1000) - ini_tt
-            self.logger.error("Get courts error (%d ms) %s: court_dict len %d" % (delta, date_str, len(court_dict)))
+            self.logger.error('Get court %d status %s error (%d ms): %d - %s'
+                              % (court, date_str, delta, response.status_code, response.reason))
+            return None
+        court_dict = json.loads(response.text.encode().decode('utf-8-sig'))
+        status_dict = {}
+        for data in court_dict['data']:
+            block = datetime.strptime(data['fromHour'], '%d/%m/%Y %H:%M:%S')  # 25/03/2023 10:00:00
+            status_dict[block.strftime('%H')] = data['avalaibleCapacity']
         delta = (time.time() * 1000) - ini_tt
-        self.logger.info('Get courts (%d ms) status %s' % (delta, date_str))
+        self.logger.info('Get court %d status %s (%d ms)' % (court, date_str, delta))
         return status_dict
 
     def get_month_reservations(self, date):
@@ -100,12 +90,12 @@ class ApiClient:
         response = requests.post(self.config.get('reservations_url'), json=request_dict, headers=self.headers)
         if response.status_code != 200:
             delta = (time.time() * 1000) - ini_tt
-            self.logger.error('Get month reservations error (%d ms) %d - %s'
-                              % (delta, response.status_code, response.reason))
+            self.logger.error('Get month %s reservations error (%d ms) %d - %s'
+                              % (date_str, delta, response.status_code, response.reason))
             return None
         response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
         delta = (time.time() * 1000) - ini_tt
-        self.logger.info('Get month reservations (%d ms) %s' % (delta, date_str))
+        self.logger.info('Get month %s reservations (%d ms)' % (date_str, delta))
         return response_dict['data']
 
     def reserve_court(self, timestamp, court):
@@ -121,16 +111,19 @@ class ApiClient:
         response = requests.post(self.config.get('court_booking_url'), json=request_dict, headers=self.headers)
         if response.status_code != 200:
             delta = (time.time() * 1000) - ini_tt
-            self.logger.error('Reserve court error (%d ms) %d - %s' % (delta, response.status_code, response.reason))
+            self.logger.error('Reserve court %d %s error (%d ms) %d - %s'
+                              % (court, timestamp.strftime('%Y-%m-%d %H'), delta,
+                                 response.status_code, response.reason))
             return response.reason
         response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
         if response_dict['code'] == 4:
             delta = (time.time() * 1000) - ini_tt
-            self.logger.error('Reserve court error (%d ms) %d - %s'
-                              % (delta, response_dict['code'], response_dict['message']))
+            self.logger.error('Reserve court %d %s error (%d ms) %d - %s'
+                              % (court, timestamp.strftime('%Y-%m-%d %H'), delta,
+                                 response_dict['code'], response_dict['message']))
             return response_dict['message']
         delta = (time.time() * 1000) - ini_tt
-        self.logger.info('Reserve court (%d ms) %d: %s' % (delta, court, timestamp.strftime('%Y-%m-%d %H')))
+        self.logger.info('Reserve court %d %s (%d ms)' % (court, timestamp.strftime('%Y-%m-%d %H'), delta))
         return None
 
     def delete_reservation(self, booking_id):
@@ -140,15 +133,15 @@ class ApiClient:
         response = requests.delete(url, headers=self.headers)
         if response.status_code != 200:
             delta = (time.time() * 1000) - ini_tt
-            self.logger.error('Delete reservation error (%d ms) %d - %s'
-                              % (delta, response.status_code, response.reason))
+            self.logger.error('Delete reservation %s error (%d ms) %d - %s'
+                              % (booking_id, delta, response.status_code, response.reason))
             return response.reason
         response_dict = json.loads(response.text.encode().decode('utf-8-sig'))
         if response_dict['code'] == 4:
             delta = (time.time() * 1000) - ini_tt
-            self.logger.error('Delete reservation error (%d ms) %d - %s'
-                              % (delta, response_dict['code'], response_dict['message']))
+            self.logger.error('Delete reservation %s error (%d ms) %d - %s'
+                              % (booking_id, delta, response_dict['code'], response_dict['message']))
             return response_dict['message']
         delta = (time.time() * 1000) - ini_tt
-        self.logger.info('Delete reservation (%d ms) %s' % (delta, booking_id))
+        self.logger.info('Delete reservation %s (%d ms)' % (booking_id, delta))
         return None
