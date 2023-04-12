@@ -54,7 +54,9 @@
         },
         events: '/events',
         eventClick: function(info) {
-            window.location.href = '/delete_form/' + info.event.id;
+            if (info.event.id) {
+                window.location.href = '/delete_form/' + info.event.id;
+            }
         },
         loading: function(isLoading) {
             var spinner = document.getElementById("loading");
