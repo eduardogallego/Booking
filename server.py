@@ -171,8 +171,9 @@ def booking_form(booking_time):
     timestamp = datetime.strptime(booking_time.split('+', 1)[0], '%Y-%m-%dT%H:%M:%S')
     court = 'Court 2' if timestamp.minute == 30 else 'Court 1'
     timestamp = timestamp.replace(minute=0)
+    error = 'La fecha de la reserva debe ser mayor a la actual' if datetime.now() > timestamp else None
     return render_template("booking_form.html", booking_date=timestamp.strftime('%Y-%m-%d'),
-                           booking_time=timestamp.strftime('%H:%M'), court=court, error=None)
+                           booking_time=timestamp.strftime('%H:%M'), court=court, error=error)
 
 
 @app.route('/booking_action', methods=['POST'])
