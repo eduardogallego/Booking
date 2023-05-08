@@ -65,15 +65,20 @@ class Scheduler(Thread):
         # Verify credentials
         api_client.check_credentials()
 
-        # NTP Correct timestamp = dest_time + offset
-        ntp_client = ntplib.NTPClient()
-        ntp_response = ntp_client.request(host='europe.pool.ntp.org', version=3)
+        ntp_offset = 0
+        try:
+            # NTP Correct timestamp = dest_time + offset
+            ntp_client = ntplib.NTPClient()
+            ntp_response = ntp_client.request(host='europe.pool.ntp.org', version=3)
+            ntp_offset = ntp_response.offset
+        except Exception:
+            logging.exception("NTP Error")
 
         # Launch burst of requests
         requests = []
         for delay_sec in [-0.35, -0.15, 0.05]:
             request = Request(timestamp=self.timestamp, court=self.court,
-                              offset_sec=ntp_response.offset, delay_sec=delay_sec)
+                              offset_sec=ntp_offset, delay_sec=delay_sec)
             requests.append(request)
             request.start()
         for request in requests:
